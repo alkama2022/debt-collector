@@ -12,6 +12,7 @@ import Payments from "./pages/Payments"
 import Reminders from "./pages/Reminders"
 import Reports from "./pages/Reports"
 import Settings from "./pages/Settings"
+import Languages from "./pages/Languages"
 import AppShell from "./layouts/AppShell"
 import { useAuth } from "./hooks/useAuth"
 
@@ -35,6 +36,7 @@ export default function App(){
       <Route path="/payments" element={<Payments/>} />
       <Route path="/reminders" element={<Reminders/>} />
       <Route path="/reports" element={<Reports/>} />
+      <Route path="/languages" element={<Languages/>} />
       <Route path="/settings" element={<Settings/>} />
     </Route>
     <Route path="*" element={<Navigate to="/" replace />} />

@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "django_extensions",
     # local
+    "apps.languages",
     "apps.tenancy",
     "apps.accounts",
     "apps.customers",

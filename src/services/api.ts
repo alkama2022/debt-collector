@@ -18,6 +18,12 @@ export async function apiFetch<T>(path: string, opts: ApiOpts = {}): Promise<T> 
   if (orgId) {
     headers["X-Org-Id"] = orgId
   }
+  // Nigerian Multilingual — send org language context
+  const orgLang = typeof localStorage !== "undefined" ? (localStorage.getItem("cn_dashboard_lang") || localStorage.getItem("cn_lang")) : null
+  if (orgLang && !headers["X-Org-Language"] && !headers["Accept-Language"]) {
+    headers["X-Org-Language"] = orgLang
+    headers["Accept-Language"] = orgLang
+  }
 
   const res = await fetch(`${config.apiBaseUrl}${path}`, { ...opts, headers })
 

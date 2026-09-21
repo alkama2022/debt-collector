@@ -18,5 +18,6 @@ urlpatterns = [
     path("api/v1/", include("apps.webhooks.urls")),
     path("api/v1/", include("apps.audit.urls")),
     path("api/v1/", include("apps.subscriptions.urls")),
+    path("api/v1/", include("apps.languages.urls")),
     path("health", include("apps.tenancy.health_urls")),
 ]

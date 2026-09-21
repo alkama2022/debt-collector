@@ -1,8 +1,7 @@
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo } from "react"
 import { Link } from "react-router-dom"
 import { useStore } from "../services/store"
 import { formatCurrency, formatDate } from "../utils/format"
-import { liveListInvoices, liveCreateInvoice, liveListCustomers, isLive } from "../services/live"
 import { Card } from "../components/ui/card"
 import { Button } from "../components/ui/button"
 import { Modal } from "../components/ui/modal"
@@ -10,125 +9,178 @@ import { Input, Select, Textarea } from "../components/ui/input"
 import { StatusBadge } from "../components/ui/badge"
 import { EmptyState } from "../components/ui/empty"
 import { useToast } from "../components/ui/toast"
+import { Skeleton } from "../components/ui/skeleton"
 import { FileText, Plus } from "lucide-react"
 
-export default function Invoices(){
-  const {invoices:mockInvoices,customers:mockCustomers,addInvoice}=useStore()
-  const {push}=useToast()
-  const [q,setQ]=useState("")
-  const [status,setStatus]=useState("all")
-  const [open,setOpen]=useState(false)
-  const [liveCustomers,setLiveCustomers]=useState<any[]|null>(null)
-  const [liveInvoices,setLiveInvoices]=useState<any[]|null>(null)
-  const customers = isLive && liveCustomers ? liveCustomers : mockCustomers
-  const invoicesRaw = isLive && liveInvoices ? liveInvoices : mockInvoices
-  // adapt live shape to mock shape for table
-  const invoices = isLive && liveInvoices ? liveInvoices.map((i:any)=>({
-    id:i.id, number:i.invoice_number, customerId:i.customer, customerName: (liveCustomers?.find(c=>c.id===i.customer)?.name ?? i.customer),
-    status:i.status, dueDate:i.due_date, issueDate:i.created_at?.slice(0,10), total:Number(i.total), balance:Number(i.balance)
-  })) : invoicesRaw
-  const [cust,setCust]=useState(customers[0]?.id || "")
-  const [amt,setAmt]=useState("75000")
-  const [due,setDue]=useState(new Date(Date.now()+86400000*7).toISOString().slice(0,10))
-  const [desc,setDesc]=useState("Service fee")
-  const [notes,setNotes]=useState("")
-  const [saving,setSaving]=useState(false)
-  useEffect(()=>{
-    if(isLive){
-      liveListCustomers().then(r=>{ if(r) setLiveCustomers(r.results.map((c:any)=>({id:c.id, name:c.name})) ) })
-      liveListInvoices().then(r=>{ if(r) setLiveInvoices(r.results) })
-    }
-  },[])
-  useEffect(()=>{ if(customers[0]?.id) setCust(customers[0].id) },[customers])
-  const filtered=useMemo(()=> invoices.filter((i:any)=> {
-    const m= q? i.number.toLowerCase().includes(q.toLowerCase())||(i.customerName||"").toLowerCase().includes(q.toLowerCase()):true
-    const s= status==="all"||i.status===status
-    return m&&s
-  }),[invoices,q,status])
-  const create=async()=>{
-    const n=Number(amt.replace(/[^0-9]/g,""))
-    if(!n || !cust){ push("Customer and amount required","error"); return}
+export default function Invoices() {
+  const { invoices, customers, loading, addInvoice } = useStore()
+  const { push } = useToast()
+
+  const [q, setQ] = useState("")
+  const [status, setStatus] = useState("all")
+  const [open, setOpen] = useState(false)
+  const [cust, setCust] = useState("")
+  const [amt, setAmt] = useState("75000")
+  const [due, setDue] = useState(new Date(Date.now() + 86400000 * 7).toISOString().slice(0, 10))
+  const [desc, setDesc] = useState("Service fee")
+  const [saving, setSaving] = useState(false)
+
+  const filtered = useMemo(() => invoices.filter(i => {
+    const m = q
+      ? i.number.toLowerCase().includes(q.toLowerCase()) ||
+        i.customerName.toLowerCase().includes(q.toLowerCase())
+      : true
+    const s = status === "all" || i.status === status
+    return m && s
+  }), [invoices, q, status])
+
+  const create = async () => {
+    const n = Number(amt.replace(/[^0-9]/g, ""))
+    const customerId = cust || customers[0]?.id
+    if (!n || !customerId) { push("Customer and amount required", "error"); return }
     setSaving(true)
-    try{
-      if(isLive){
-        const payload={ customer: cust, due_date: due, items:[{name:desc||"Service fee", qty:1, unit_price_minor: n*100 }], currency:"NGN" }
-        const res:any = await liveCreateInvoice(payload, `inv-${Date.now()}`)
-        push(`Invoice ${res?.invoice_number ?? res?.id ?? ""} created — ₦${n.toLocaleString()}`,"success")
-        const r= await liveListInvoices(); if(r) setLiveInvoices(r.results)
-      } else {
-        addInvoice({customerId:cust, amount:n, dueDate:due, desc})
-        push(`Invoice created — ${formatCurrency(n)} — watch customer balance update`,"success")
-      }
+    try {
+      await addInvoice({ customerId, amount: n, dueDate: due, desc })
+      push(`Invoice created — ${formatCurrency(n)}`, "success")
       setOpen(false)
-    }catch(e:any){ push(e?.data?.message || "Failed to create invoice","error") } finally{ setSaving(false) }
+    } catch (e: any) {
+      push(e?.data?.message || "Failed to create invoice", "error")
+    } finally {
+      setSaving(false)
+    }
   }
-  return <div className="space-y-4">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 className="text-xl font-bold">Invoices</h1>
-        <p className="text-sm text-slate-600">{invoices.length} invoices � Create ? balance updates live � totals computed safely.</p>
-      </div>
-      <Button onClick={()=>setOpen(true)} className="gap-2"><Plus className="w-4 h-4"/> Create Invoice</Button>
+
+  if (loading) return (
+    <div className="space-y-3">
+      <Skeleton className="h-16 w-full" />
+      <Skeleton className="h-64 w-full" />
     </div>
+  )
 
-    <Card className="p-4 flex flex-col md:flex-row gap-3">
-      <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search invoice or customer" className="flex-1 h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
-      <select value={status} onChange={e=>setStatus(e.target.value)} className="h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm">
-        <option value="all">All status</option>
-        <option value="draft">Draft</option>
-        <option value="sent">Sent</option>
-        <option value="paid">Paid</option>
-        <option value="overdue">Overdue</option>
-        <option value="cancelled">Cancelled</option>
-      </select>
-    </Card>
-
-    {filtered.length===0 ? <EmptyState title="No invoices yet" desc="Create your first invoice to start tracking balances. It will update customer outstanding instantly." icon={<FileText className="w-6 h-6"/>} action={{label:"Create Invoice", onClick:()=>setOpen(true)}} /> : <>
-      <div className="grid md:hidden gap-3">
-        {filtered.map(inv=> <Card key={inv.id} className="p-4">
-          <div className="flex justify-between">
-            <div className="font-mono text-sm font-semibold">{inv.number}</div>
-            <StatusBadge status={inv.status} />
-          </div>
-          <div className="text-sm mt-1">{inv.customerName}</div>
-          <div className="text-xs text-slate-500">Due {formatDate(inv.dueDate)} � {formatCurrency(inv.balance)} balance � {formatCurrency(inv.total)} total</div>
-          <Link to={`/invoices/${inv.id}`} className="mt-3 block text-center py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium min-h-[44px] flex items-center justify-center">View</Link>
-        </Card>)}
-      </div>
-      <Card className="hidden md:block overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="text-left p-3">Invoice</th><th className="text-left">Customer</th><th className="text-left">Issue</th><th className="text-left">Due</th><th>Status</th><th className="text-right">Total</th><th className="text-right">Balance</th><th></th></tr></thead>
-            <tbody>
-              {filtered.map(inv=> <tr key={inv.id} className="border-t hover:bg-slate-50">
-                <td className="p-3 font-mono font-medium"><Link to={`/invoices/${inv.id}`} className="hover:underline">{inv.number}</Link></td>
-                <td>{inv.customerName}</td>
-                <td>{formatDate(inv.issueDate)}</td>
-                <td>{formatDate(inv.dueDate)}</td>
-                <td><StatusBadge status={inv.status} /></td>
-                <td className="text-right">{formatCurrency(inv.total)}</td>
-                <td className="text-right font-medium">{formatCurrency(inv.balance)}</td>
-                <td className="pr-3 text-right"><Link to={`/invoices/${inv.id}`} className="text-xs px-3 py-1.5 rounded-full border bg-white">View</Link></td>
-              </tr>)}
-            </tbody>
-          </table>
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold">Invoices</h1>
+          <p className="text-sm text-slate-600">{invoices.length} invoices</p>
         </div>
+        <Button onClick={() => setOpen(true)} className="gap-2">
+          <Plus className="w-4 h-4" /> Create Invoice
+        </Button>
+      </div>
+
+      <Card className="p-4 flex flex-col md:flex-row gap-3">
+        <input
+          value={q}
+          onChange={e => setQ(e.target.value)}
+          placeholder="Search invoice or customer"
+          className="flex-1 h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+        />
+        <select
+          value={status}
+          onChange={e => setStatus(e.target.value)}
+          className="h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm"
+        >
+          <option value="all">All status</option>
+          <option value="draft">Draft</option>
+          <option value="sent">Sent</option>
+          <option value="paid">Paid</option>
+          <option value="overdue">Overdue</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
       </Card>
-    </>}
 
-    <Modal open={open} onClose={()=>setOpen(false)} title="Create invoice">
-      <div className="space-y-3">
-        <Select label="Customer" value={cust} onChange={e=>setCust(e.target.value)} options={customers.map(c=>({value:c.id,label:c.name}))} />
-        <Input label="Description" value={desc} onChange={e=>setDesc(e.target.value)} placeholder="e.g. School fees Term 1" />
-        <Input label="Amount (NGN)" value={amt} onChange={e=>setAmt(e.target.value)} />
-        <Input label="Due date" type="date" value={due} onChange={e=>setDue(e.target.value)} />
-        <Textarea label="Notes / Payment instructions" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Bank: 0123456789 � Wema" />
-        <div className="p-3 rounded-xl bg-slate-50 border text-xs text-slate-600">Preview total: {formatCurrency(Number(amt.replace(/[^0-9]/g,""))||0)} � Backend will authoritatively calculate subtotal/discount/tax/total. This persists and updates customer & dashboard KPIs live.</div>
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={()=>setOpen(false)} disabled={saving}>Cancel</Button>
-          <Button onClick={create} disabled={saving}>{saving?"Creating...":"Create"}</Button>
+      {filtered.length === 0 ? (
+        <EmptyState
+          title="No invoices yet"
+          desc="Create your first invoice to start tracking balances."
+          icon={<FileText className="w-6 h-6" />}
+          action={{ label: "Create Invoice", onClick: () => setOpen(true) }}
+        />
+      ) : (
+        <>
+          {/* Mobile cards */}
+          <div className="grid md:hidden gap-3">
+            {filtered.map(inv => (
+              <Card key={inv.id} className="p-4">
+                <div className="flex justify-between">
+                  <div className="font-mono text-sm font-semibold">{inv.number}</div>
+                  <StatusBadge status={inv.status} />
+                </div>
+                <div className="text-sm mt-1">{inv.customerName}</div>
+                <div className="text-xs text-slate-500">
+                  Due {formatDate(inv.dueDate)} — {formatCurrency(inv.balance)} balance — {formatCurrency(inv.total)} total
+                </div>
+                <Link
+                  to={`/invoices/${inv.id}`}
+                  className="mt-3 block text-center py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium min-h-[44px] flex items-center justify-center"
+                >
+                  View
+                </Link>
+              </Card>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <Card className="hidden md:block overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-xs text-slate-500">
+                  <tr>
+                    <th className="text-left p-3">Invoice</th>
+                    <th className="text-left">Customer</th>
+                    <th className="text-left">Issue</th>
+                    <th className="text-left">Due</th>
+                    <th>Status</th>
+                    <th className="text-right">Total</th>
+                    <th className="text-right">Balance</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map(inv => (
+                    <tr key={inv.id} className="border-t hover:bg-slate-50">
+                      <td className="p-3 font-mono font-medium">
+                        <Link to={`/invoices/${inv.id}`} className="hover:underline">{inv.number}</Link>
+                      </td>
+                      <td>{inv.customerName}</td>
+                      <td>{formatDate(inv.issueDate)}</td>
+                      <td>{formatDate(inv.dueDate)}</td>
+                      <td><StatusBadge status={inv.status} /></td>
+                      <td className="text-right">{formatCurrency(inv.total)}</td>
+                      <td className="text-right font-medium">{formatCurrency(inv.balance)}</td>
+                      <td className="pr-3 text-right">
+                        <Link to={`/invoices/${inv.id}`} className="text-xs px-3 py-1.5 rounded-full border bg-white">View</Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </>
+      )}
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Create invoice">
+        <div className="space-y-3">
+          <Select
+            label="Customer"
+            value={cust || customers[0]?.id || ""}
+            onChange={e => setCust(e.target.value)}
+            options={customers.map(c => ({ value: c.id, label: c.name }))}
+          />
+          <Input label="Description" value={desc} onChange={e => setDesc(e.target.value)} placeholder="e.g. School fees Term 1" />
+          <Input label="Amount (NGN)" value={amt} onChange={e => setAmt(e.target.value)} />
+          <Input label="Due date" type="date" value={due} onChange={e => setDue(e.target.value)} />
+          <div className="p-3 rounded-xl bg-slate-50 border text-xs text-slate-600">
+            Preview total: {formatCurrency(Number(amt.replace(/[^0-9]/g, "")) || 0)}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
+            <Button onClick={create} disabled={saving}>{saving ? "Creating..." : "Create"}</Button>
+          </div>
         </div>
-      </div>
-    </Modal>
-  </div>
+      </Modal>
+    </div>
+  )
 }

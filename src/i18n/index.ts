@@ -1,23 +1,23 @@
-// i18n scaffolding: translation keys prepared for global expansion.
-// Default locale English (Nigeria). Add locales without rewriting components.
-// Usage: t("dashboard.total_outstanding") — falls back to key.
+// i18n — Nigerian Multilingual System (registry scalable, first-class en/ha/yo/ig/pcm)
+export * from "./registry"
+export * from "./translations"
+import { translate } from "./translations"
+import { DEFAULT_LANGUAGE } from "./registry"
 
-const enNG: Record<string, string> = {
-  "app.tagline": "Collect what you're owed. Stay in control.",
-  "nav.home": "Home", "nav.customers": "Customers", "nav.invoices": "Invoices", "nav.payments": "Payments", "nav.more": "More",
-  "dashboard.greeting": "Good morning",
-  "dashboard.total_outstanding": "Total Outstanding",
-  "dashboard.due_today": "Due Today",
-  "dashboard.overdue": "Overdue",
-  "dashboard.collected_month": "Collected This Month",
-  "cta.start_free": "Start Free",
-  "cta.see_how": "See How It Works",
-  "empty.customers.title": "No customers yet",
-  "empty.customers.desc": "Add your first customer to start tracking payments.",
-  "empty.invoices.title": "No invoices yet",
-  "empty.payments.title": "No payments yet",
+function currentLang(): string {
+  if (typeof localStorage !== "undefined") {
+    return localStorage.getItem("cn_dashboard_lang") || localStorage.getItem("cn_lang") || DEFAULT_LANGUAGE
+  }
+  return DEFAULT_LANGUAGE
 }
 
-export const t = (key: string, fallback?: string) => enNG[key] ?? fallback ?? key
+/** Legacy helper: t(key, fallback?) — now language-aware via dashboard setting */
+export const t = (key: string, fallback?: string, vars?: Record<string, string | number>) => {
+  const lang = currentLang()
+  const v = translate(key, lang, vars)
+  if (v === key && fallback) return fallback
+  return v
+}
+
 export const locale = "en-NG"
 export const currency = "NGN"

@@ -23,7 +23,44 @@ export type RawCustomer = {
   outstanding: string
   overdue: string
   opt_out: boolean
+  preferred_language?: string
+  language_history?: { code: string; changed_at: string; changed_by?: string }[]
   created_at: string
+}
+
+export type LanguageInfo = {
+  code: string
+  name: string
+  native_name: string
+  locale: string
+  active: boolean
+}
+
+export type OrgLanguageSettings = {
+  dashboard_language: string
+  default_customer_language: string
+  ai_communication_mode: "use_customer_preferred" | "use_fallback" | "auto_detect"
+  fallback_language: string
+  supported_languages: string[]
+}
+
+export type DetectResult = {
+  detected_language: string
+  confidence: number
+  alternatives?: { code: string; confidence: number }[]
+}
+
+export type CustomerLanguage = {
+  customer_id: string
+  preferred_language: string
+  history: { code: string; changed_at: string; changed_by?: string }[]
+}
+
+export type ResolvedLanguage = {
+  response_language: string
+  source: "customer_preferred" | "fallback" | "auto_detected" | "org_default"
+  detected?: string
+  confidence?: number
 }
 
 export type RawInvoice = {
@@ -104,12 +141,14 @@ export function normalizeCustomer(c: RawCustomer): Customer {
     name: c.name,
     phone: c.phone,
     email: c.email,
-    totalInvoiced: 0,          // backend doesn't return this aggregate directly
+    totalInvoiced: 0,
     totalPaid: 0,
     outstanding: Number(c.outstanding),
     overdue: Number(c.overdue),
     status: c.opt_out ? "archived" : "active",
     createdAt: c.created_at,
+    preferredLanguage: c.preferred_language ?? (c as any).preferredLanguage ?? "en",
+    languageHistory: c.language_history ?? (c as any).languageHistory ?? [],
   }
 }
 
@@ -182,6 +221,7 @@ export async function createCustomer(payload: {
   name: string
   phone: string
   email?: string
+  preferred_language?: string
 }): Promise<RawCustomer> {
   return apiFetch<RawCustomer>("/customers", {
     method: "POST",
@@ -353,6 +393,61 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     paymentCount: payments.length,
     cashflow,
   }
+}
+
+// ─── Languages & Org Language Settings ───────────────────────────────────────
+
+function languageHeaders(): Record<string, string> {
+  const orgLang = localStorage.getItem("cn_dashboard_lang") || localStorage.getItem("cn_lang") || "en"
+  return { "X-Org-Language": orgLang, "Accept-Language": orgLang }
+}
+
+export async function liveListLanguages(): Promise<{ languages: LanguageInfo[] }> {
+  // Backend: GET /languages  (versioned as /api/v1/languages via api.ts base)
+  return apiFetch<{ languages: LanguageInfo[] }>("/languages", { headers: languageHeaders() })
+}
+
+export async function liveGetOrgLanguageSettings(): Promise<OrgLanguageSettings> {
+  return apiFetch<OrgLanguageSettings>("/organizations/language-settings", { headers: languageHeaders() })
+}
+
+export async function liveUpdateOrgLanguageSettings(payload: Partial<OrgLanguageSettings>): Promise<OrgLanguageSettings> {
+  return apiFetch<OrgLanguageSettings>("/organizations/language-settings", {
+    method: "PATCH",
+    headers: languageHeaders(),
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function liveDetectLanguage(text: string): Promise<DetectResult> {
+  return apiFetch<DetectResult>("/languages/detect", {
+    method: "POST",
+    headers: languageHeaders(),
+    body: JSON.stringify({ text }),
+  })
+}
+
+export async function liveGetCustomerLanguage(customerId: string): Promise<CustomerLanguage> {
+  return apiFetch<CustomerLanguage>(`/customers/${customerId}/language`, { headers: languageHeaders() })
+}
+
+export async function liveUpdateCustomerLanguage(customerId: string, code: string): Promise<CustomerLanguage> {
+  return apiFetch<CustomerLanguage>(`/customers/${customerId}/language`, {
+    method: "PATCH",
+    headers: languageHeaders(),
+    body: JSON.stringify({ preferred_language: code }),
+  })
+}
+
+export async function liveResolveResponseLanguage(params: {
+  customerId?: string
+  text?: string
+}): Promise<ResolvedLanguage> {
+  const p = new URLSearchParams()
+  if (params.customerId) p.set("customer_id", params.customerId)
+  if (params.text) p.set("text", params.text)
+  const qs = p.toString() ? `?${p}` : ""
+  return apiFetch<ResolvedLanguage>(`/languages/resolve${qs}`, { headers: languageHeaders() })
 }
 
 function buildCashflow(

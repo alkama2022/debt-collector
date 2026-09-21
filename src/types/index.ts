@@ -17,6 +17,8 @@ export interface Customer {
   overdue: number
   status: "active" | "archived"
   createdAt: string
+  preferredLanguage?: string
+  languageHistory?: { code: string; changed_at: string; changed_by?: string }[]
 }
 
 export interface InvoiceItem { id: string; description: string; quantity: number; unitPrice: number; discount?: number; tax?: number }
