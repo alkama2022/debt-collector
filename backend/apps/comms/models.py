@@ -61,3 +61,37 @@ class CommunicationEvent(TenantModel):
 
     def __str__(self):
         return f"{self.channel} -> {self.customer} ({self.status})"
+
+
+class ReminderRule(TenantModel):
+    """S3 Auto-Reminder Engine: set once, runs daily at 8am WAT. — Love feature."""
+    class Trigger(models.TextChoices):
+        BEFORE_DUE = "before_due", "Before due"
+        ON_DUE = "on_due", "On due date"
+        AFTER_DUE = "after_due", "After due"
+
+    class Channel(models.TextChoices):
+        WHATSAPP = "whatsapp", "WhatsApp"
+        SMS = "sms", "SMS"
+        EMAIL = "email", "Email"
+        VOICE = "voice", "Voice"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=128, default="Reminder rule")
+    trigger = models.CharField(max_length=16, choices=Trigger.choices, default=Trigger.ON_DUE)
+    offset_days = models.IntegerField(default=0, help_text="Days before (negative) or after due date. 0=on due")
+    channel = models.CharField(max_length=16, choices=Channel.choices, default=Channel.WHATSAPP)
+    template = models.TextField(default="Hello {{customer_name}}, invoice {{invoice_number}} for {{amount_due}} is due on {{due_date}}. Pay: {{payment_link}}")
+    language = models.CharField(max_length=16, default="auto", help_text="auto=customer preferred, or en/ha/yo/ig")
+    enabled = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = CommsManager()
+
+    class Meta:
+        db_table = "reminder_rules"
+        indexes = [models.Index(fields=["org", "enabled"])]
+
+    def __str__(self):
+        return f"{self.name} ({self.trigger} {self.offset_days}d via {self.channel})"

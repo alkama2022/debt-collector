@@ -9,6 +9,7 @@ import { StatusBadge } from "../components/ui/badge"
 import { useToast } from "../components/ui/toast"
 import { Skeleton } from "../components/ui/skeleton"
 import { CreditCard } from "lucide-react"
+import { downloadReceiptPdf, triggerBlobDownload } from "../services/live"
 
 export default function Payments() {
   const { payments, invoices, loading, addPayment } = useStore()
@@ -32,6 +33,16 @@ export default function Payments() {
 
   const openInvoices = invoices.filter(i => i.balance > 0)
 
+  const handleDownloadReceipt = async (paymentId: string, receiptName: string) => {
+    try {
+      const blob = await downloadReceiptPdf(paymentId)
+      triggerBlobDownload(blob, `${receiptName}.pdf`)
+      push("Receipt PDF downloaded — backend-generated", "success")
+    } catch {
+      push("Failed to download receipt — backend not reachable or payment not found", "error")
+    }
+  }
+
   const submit = async () => {
     const invId = selInv || openInvoices[0]?.id
     const inv = invoices.find(i => i.id === invId)
@@ -46,7 +57,9 @@ export default function Payments() {
       const remaining = inv.balance - n
       push(`Payment recorded — ${formatCurrency(n)}`, "success")
       setOpen(false)
-      setOpenReceipt({ amount: n, method, ref, date: new Date().toISOString(), customer: inv.customerName, invoice: inv.number, remaining })
+      // Find the created payment id for receipt download (optimistic: use last payment)
+      const created = payments[0] // will be updated on next refresh; fallback to invoice
+      setOpenReceipt({ amount: n, method, ref, date: new Date().toISOString(), customer: inv.customerName, invoice: inv.number, remaining, paymentId: created?.id || inv.id })
       setRef("PAY-" + Math.floor(10000 + Math.random() * 90000))
     } catch (e: any) {
       push(e?.data?.message || "Failed to record payment", "error")
@@ -177,7 +190,14 @@ export default function Payments() {
           </div>
           <div className="flex gap-2 justify-end">
             <Button variant="secondary" onClick={() => setOpenReceipt(null)}>Close</Button>
-            <Button onClick={() => push("Receipt download — backend generates PDF", "success")}>Download / Share</Button>
+            <Button onClick={() => {
+              if (openReceipt?.paymentId) handleDownloadReceipt(openReceipt.paymentId, `Receipt-${openReceipt.invoice}`)
+              else push("Save payment first — receipt will be available in table", "info")
+            }}>Download PDF</Button>
+            <Button variant="secondary" onClick={() => {
+              const text = `Receipt ${openReceipt?.invoice} — ${formatCurrency(Number(openReceipt?.amount || 0))} received from ${openReceipt?.customer}. Remaining ${formatCurrency(Number(openReceipt?.remaining || 0))}. Thank you!`
+              window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank")
+            }}>Share on WhatsApp</Button>
           </div>
         </div>
       </Modal>

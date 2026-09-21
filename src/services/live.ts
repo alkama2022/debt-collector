@@ -229,6 +229,14 @@ export async function createCustomer(payload: {
   })
 }
 
+export async function bulkCreateCustomers(rows: { name: string; phone?: string; email?: string; preferred_language?: string }[]): Promise<{ created: number; failed: number; customers: RawCustomer[]; errors: any[] }> {
+  const res = await apiFetch<{ success: boolean; data: { created: number; failed: number; customers: RawCustomer[]; errors: any[] }; message: string }>("/customers/bulk", {
+    method: "POST",
+    body: JSON.stringify({ customers: rows }),
+  })
+  return res.data
+}
+
 export async function getCustomer(id: string): Promise<RawCustomer> {
   return apiFetch<RawCustomer>(`/customers/${id}`)
 }
@@ -327,6 +335,48 @@ export async function createCommEvent(payload: {
     method: "POST",
     body: JSON.stringify(payload),
   })
+}
+
+// ─── Reminder Rules (S3 Auto-Reminder Engine) ──────────────────────────────────
+
+export type RawRule = {
+  id: string
+  org: string
+  name: string
+  trigger: "before_due" | "on_due" | "after_due"
+  offset_days: number
+  channel: string
+  template: string
+  language: string
+  enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+export async function listReminderRules(): Promise<{ results: RawRule[] } | Paginated<RawRule>> {
+  const res = await apiFetch<any>("/comms/rules")
+  // DRF paginated or plain list
+  if (Array.isArray(res)) return { results: res }
+  if (res.results) return res
+  return { results: res as any }
+}
+
+export async function createReminderRule(payload: Partial<RawRule>): Promise<RawRule> {
+  return apiFetch<RawRule>("/comms/rules", { method: "POST", body: JSON.stringify(payload) })
+}
+
+export async function updateReminderRule(id: string, payload: Partial<RawRule>): Promise<RawRule> {
+  return apiFetch<RawRule>(`/comms/rules/${id}`, { method: "PATCH", body: JSON.stringify(payload) })
+}
+
+export async function deleteReminderRule(id: string): Promise<void> {
+  await apiFetch<void>(`/comms/rules/${id}`, { method: "DELETE" })
+}
+
+export async function runReminderRule(id?: string): Promise<{ created: number; event_ids: string[]; message: string }> {
+  const path = id ? `/comms/rules/${id}/run` : "/comms/rules/run-all"
+  const res = await apiFetch<{ success: boolean; data: { created: number; event_ids: string[]; message: string } }>(path, { method: "POST" })
+  return res.data
 }
 
 // ─── Audit Logs ───────────────────────────────────────────────────────────────
@@ -448,6 +498,66 @@ export async function liveResolveResponseLanguage(params: {
   if (params.text) p.set("text", params.text)
   const qs = p.toString() ? `?${p}` : ""
   return apiFetch<ResolvedLanguage>(`/languages/resolve${qs}`, { headers: languageHeaders() })
+}
+
+// ─── Invoices: PDF & Pay Link ────────────────────────────────────────────────
+
+export async function getInvoicePayLink(invoiceId: string): Promise<{ pay_url: string; token: string; invoice_number: string; amount: string; currency: string; provider: string }> {
+  const res = await apiFetch<{ success: boolean; data: { pay_url: string; token: string; invoice_number: string; amount: string; currency: string; provider: string } }>(`/invoices/${invoiceId}/pay-link`)
+  return res.data
+}
+
+export async function getPublicPayInfo(invoiceId: string): Promise<{ invoice_number: string; customer_name: string; due_date: string | null; total: string; balance: string; currency: string; status: string; org_name: string }> {
+  const res = await apiFetch<{ success: boolean; data: { invoice_number: string; customer_name: string; due_date: string | null; total: string; balance: string; currency: string; status: string; org_name: string } }>(`/public/pay/${invoiceId}`, { auth: false })
+  return res.data
+}
+
+export async function initializePaystackPayment(invoiceId: string): Promise<{ authorization_url: string; reference: string; access_code: string; mock: boolean; pay_url: string }> {
+  const res = await apiFetch<{ success: boolean; data: { authorization_url: string; reference: string; access_code: string; mock: boolean; pay_url: string } }>(`/payments/initialize`, { method: "POST", body: JSON.stringify({ invoice: invoiceId }) })
+  return res.data
+}
+
+export async function verifyPaystackPayment(reference: string): Promise<{ payment_id: string; status: string; invoice_id: string; mock: boolean }> {
+  const res = await apiFetch<{ success: boolean; data: { payment_id: string; status: string; invoice_id: string; mock: boolean } }>(`/payments/verify?reference=${encodeURIComponent(reference)}`)
+  return res.data
+}
+
+export async function downloadInvoicePdf(invoiceId: string): Promise<Blob> {
+  const token = localStorage.getItem("cn_token")
+  const orgId = localStorage.getItem("cn_org_id")
+  const headers: Record<string, string> = {}
+  if (token) headers["Authorization"] = `Bearer ${token}`
+  if (orgId) headers["X-Org-Id"] = orgId
+  const orgLang = localStorage.getItem("cn_dashboard_lang") || localStorage.getItem("cn_lang") || "en"
+  headers["X-Org-Language"] = orgLang
+  headers["Accept-Language"] = orgLang
+  const base = (await import("../config")).config.apiBaseUrl
+  const res = await fetch(`${base}/invoices/${invoiceId}/pdf`, { headers })
+  if (!res.ok) throw new Error("Failed to download invoice PDF")
+  return res.blob()
+}
+
+export async function downloadReceiptPdf(paymentId: string): Promise<Blob> {
+  const token = localStorage.getItem("cn_token")
+  const orgId = localStorage.getItem("cn_org_id")
+  const headers: Record<string, string> = {}
+  if (token) headers["Authorization"] = `Bearer ${token}`
+  if (orgId) headers["X-Org-Id"] = orgId
+  const base = (await import("../config")).config.apiBaseUrl
+  const res = await fetch(`${base}/payments/${paymentId}/receipt/pdf`, { headers })
+  if (!res.ok) throw new Error("Failed to download receipt")
+  return res.blob()
+}
+
+export function triggerBlobDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 2000)
 }
 
 function buildCashflow(

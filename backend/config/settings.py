@@ -158,6 +158,7 @@ ANTHROPIC_API_KEY = config("ANTHROPIC_API_KEY", default="")
 PAYSTACK_SECRET_KEY = config("PAYSTACK_SECRET_KEY", default="")
 PAYSTACK_WEBHOOK_SECRET = config("PAYSTACK_WEBHOOK_SECRET", default="")
 FLUTTERWAVE_SECRET_KEY = config("FLUTTERWAVE_SECRET_KEY", default="")
+FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:5173")
 # Comms
 WHATSAPP_PROVIDER = config("WHATSAPP_PROVIDER", default="mock")  # mock, meta, termii
 TERMII_API_KEY = config("TERMII_API_KEY", default="")

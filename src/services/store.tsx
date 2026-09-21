@@ -12,6 +12,7 @@ import {
   listCommEvents,
   listAuditLogs,
   createCustomer,
+  bulkCreateCustomers,
   createInvoice,
   createPayment,
   createCommEvent,
@@ -52,6 +53,7 @@ type Action =
 export type Store = State & {
   refresh: () => Promise<void>
   addCustomer: (data: { name: string; phone: string; email?: string; preferred_language?: string }) => Promise<void>
+  bulkAddCustomers: (rows: { name: string; phone?: string; email?: string; preferred_language?: string }[]) => Promise<{ created: number; failed: number; errors: any[] }>
   addInvoice: (data: { customerId: string; amount: number; dueDate: string; desc: string }) => Promise<void>
   addPayment: (data: { invoiceId: string; amount: number; method: string; ref: string; notes?: string }) => Promise<void>
   addReminder: (data: { invoiceId: string; channel: Reminder["channel"] }) => Promise<void>
@@ -210,6 +212,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     })
   }, [state.customers])
 
+  const bulkAddCustomers = useCallback(async (rows: { name: string; phone?: string; email?: string; preferred_language?: string }[]) => {
+    const res = await bulkCreateCustomers(rows)
+    const newCustomers = res.customers.map(normalizeCustomer)
+    if (newCustomers.length) {
+      dispatch({ type: "SET_CUSTOMERS", customers: [...newCustomers, ...state.customers] })
+      dispatch({
+        type: "ADD_NOTIF",
+        notif: { id: `n${Date.now()}`, title: "Bulk import complete", body: `${res.created} customers imported${res.failed ? `, ${res.failed} failed` : ""}`, time: new Date().toISOString(), read: false, type: "system" },
+      })
+    }
+    return res
+  }, [state.customers])
+
   const addInvoice = useCallback(async (data: { customerId: string; amount: number; dueDate: string; desc: string }) => {
     const amountKobo = Math.round(data.amount * 100)
     const raw = await createInvoice(
@@ -288,6 +303,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     ...state,
     refresh,
     addCustomer,
+    bulkAddCustomers,
     addInvoice,
     addPayment,
     addReminder,

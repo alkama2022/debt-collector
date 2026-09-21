@@ -13,6 +13,7 @@ import Reminders from "./pages/Reminders"
 import Reports from "./pages/Reports"
 import Settings from "./pages/Settings"
 import Languages from "./pages/Languages"
+import PayInvoice from "./pages/PayInvoice"
 import AppShell from "./layouts/AppShell"
 import { useAuth } from "./hooks/useAuth"
 
@@ -26,6 +27,7 @@ export default function App(){
     <Route path="/" element={<Landing/>} />
     <Route path="/login" element={<Login/>} />
     <Route path="/signup" element={<Signup/>} />
+    <Route path="/pay/:id" element={<PayInvoice/>} />
     <Route path="/onboarding" element={<Protected><Onboarding/></Protected>} />
     <Route element={<Protected><AppShell/></Protected>}>
       <Route path="/dashboard" element={<Dashboard/>} />

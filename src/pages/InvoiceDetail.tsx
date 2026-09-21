@@ -6,11 +6,53 @@ import { StatusBadge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
 import { useToast } from "../components/ui/toast"
 import { Skeleton } from "../components/ui/skeleton"
+import { useState } from "react"
+import { getInvoicePayLink, downloadInvoicePdf, triggerBlobDownload } from "../services/live"
 
 export default function InvoiceDetail() {
   const { id } = useParams()
   const { invoices, payments, loading } = useStore()
   const { push } = useToast()
+  const [downloading, setDownloading] = useState(false)
+  const [sharing, setSharing] = useState(false)
+  const [payUrl, setPayUrl] = useState<string | null>(null)
+
+  const handleDownload = async (invoiceId: string, number: string) => {
+    if (downloading) return
+    setDownloading(true)
+    try {
+      const blob = await downloadInvoicePdf(invoiceId)
+      triggerBlobDownload(blob, `${number}.pdf`)
+      push("Invoice PDF downloaded — backend-generated", "success")
+    } catch {
+      push("Failed to download PDF — check auth / backend running", "error")
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  const handleShareWhatsApp = async (invoiceId: string, number: string, customerName: string, balance: number, currency: string) => {
+    if (sharing) return
+    setSharing(true)
+    try {
+      let url = payUrl
+      if (!url) {
+        const data = await getInvoicePayLink(invoiceId)
+        url = data.pay_url
+        setPayUrl(url)
+      }
+      const amount = formatCurrency(balance, currency as any)
+      const msg = `Hello ${customerName}, invoice ${number} for ${amount} is due. Pay securely here: ${url} — Thank you!`
+      const wa = `https://wa.me/?text=${encodeURIComponent(msg)}`
+      window.open(wa, "_blank")
+      await navigator.clipboard?.writeText(url).catch(() => {})
+      push("WhatsApp opened — pay link copied", "success")
+    } catch {
+      push("Failed to create pay link — check backend", "error")
+    } finally {
+      setSharing(false)
+    }
+  }
 
   if (loading) return (
     <div className="space-y-4">
@@ -42,11 +84,19 @@ export default function InvoiceDetail() {
             </div>
             <div className="mt-2"><StatusBadge status={inv.status} /></div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => { navigator.clipboard?.writeText(inv.number); push("Invoice number copied", "success") }}>
               Copy
             </Button>
-            <Button onClick={() => push("PDF download — backend generates", "success")}>Download</Button>
+            <Button variant="secondary" onClick={() => handleDownload(inv.id, inv.number)} disabled={downloading}>
+              {downloading ? "Downloading…" : "Download PDF"}
+            </Button>
+            <Button onClick={() => handleShareWhatsApp(inv.id, inv.number, inv.customerName, inv.balance, inv.currency)} disabled={sharing || inv.balance <= 0}>
+              {sharing ? "Opening…" : "Share on WhatsApp"}
+            </Button>
+          </div>
+          <div className="mt-2 text-xs text-slate-500">
+            Pay link: {payUrl ? <a href={payUrl} target="_blank" rel="noreferrer" className="text-brand-600 underline">{payUrl}</a> : <button onClick={() => getInvoicePayLink(inv.id).then(d => setPayUrl(d.pay_url)).catch(() => push("Login required for pay link", "error"))} className="text-brand-600 underline">Generate pay link</button>} • Link is pay/collectnaija + Paystack when configured
           </div>
         </div>
 
