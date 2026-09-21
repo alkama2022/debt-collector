@@ -24,6 +24,6 @@ export async function apiFetch<T>(path: string, opts: ApiOpts = {}): Promise<T> 
 
 // Analytics stubs — no PII
 export const track = (event: string, props?: Record<string, unknown>) => {
-  if (import.meta.env.DEV) console.log("[analytics]", event, props)
+  if ((import.meta as any).env.DEV) console.log("[analytics]", event, props)
   // TODO: wire to analytics provider
 }
