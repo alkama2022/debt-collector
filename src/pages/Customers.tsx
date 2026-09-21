@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { useStore } from "../services/store"
 import { formatCurrency } from "../utils/format"
+import { liveListCustomers, liveCreateCustomer, isLive } from "../services/live"
 import { Card } from "../components/ui/card"
 import { Input } from "../components/ui/input"
 import { Button } from "../components/ui/button"
@@ -13,10 +14,24 @@ import { Skeleton } from "../components/ui/skeleton"
 import { Search, Plus, Users } from "lucide-react"
 
 export default function Customers(){
-  const {customers,addCustomer,addReminder,invoices}=useStore()
+  const {customers:mockCustomers,addCustomer,addReminder,invoices}=useStore()
   const {push}=useToast()
   const [loading,setLoading]=useState(true)
-  useEffect(()=>{ const t=setTimeout(()=>setLoading(false),350); return ()=>clearTimeout(t)},[])
+  const [liveCustomers,setLiveCustomers]=useState<any[]|null>(null)
+  useEffect(()=>{
+    if(isLive){
+      liveListCustomers().then(r=>{
+        if(r) setLiveCustomers(r.results.map((c:any)=>({
+          id:c.id, customerId:c.customer_code, name:c.name, phone:c.phone, email:c.email,
+          outstanding: Number(c.outstanding), overdue: Number(c.overdue), totalInvoiced: Number(c.outstanding), status: "active"
+        })))
+        else setLiveCustomers(null)
+      }).catch(()=> setLiveCustomers(null)).finally(()=> setLoading(false))
+    } else {
+      const t=setTimeout(()=>setLoading(false),350); return ()=>clearTimeout(t)
+    }
+  },[])
+  const customers = (isLive && liveCustomers) ? liveCustomers : mockCustomers
   const [q,setQ]=useState("")
   const [filter,setFilter]=useState<"all"|"overdue"|"archived">("all")
   const [open,setOpen]=useState(false)
@@ -29,21 +44,34 @@ export default function Customers(){
     const f= filter==="overdue"? c.overdue>0 : filter==="archived"? c.status==="archived": c.status==="active"
     return m&&f
   }),[customers,q,filter])
-  const add=()=>{
+  const add=async()=>{
     if(!name){ push("Name required","error"); return}
     setSaving(true)
-    setTimeout(()=>{
-      addCustomer({name,phone,email})
-      push(`${name} added • balances start at ?0`,"success")
-      setOpen(false); setName(""); setPhone(""); setEmail(""); setSaving(false)
-    },600)
+    try{
+      if(isLive){
+        const res:any = await liveCreateCustomer({name,phone,email})
+        const c = res?.data ?? res
+        if(c?.id){
+          push(`${name} added (live)`,"success")
+          // refetch
+          const r = await liveListCustomers()
+          if(r) setLiveCustomers(r.results.map((x:any)=>({ id:x.id, customerId:x.customer_code, name:x.name, phone:x.phone, email:x.email, outstanding:Number(x.outstanding), overdue:Number(x.overdue), totalInvoiced:Number(x.outstanding), status:"active"})))
+        }
+      } else {
+        addCustomer({name,phone,email})
+        push(`${name} added â€” balances start at â‚¦0`,"success")
+      }
+      setOpen(false); setName(""); setPhone(""); setEmail("")
+    }catch(e:any){
+      push(e?.data?.message || "Failed to create customer","error")
+    } finally { setSaving(false) }
   }
   if(loading) return <div className="space-y-3"><Skeleton className="h-16 w-full"/><Skeleton className="h-64 w-full"/></div>
   return <div className="space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h1 className="text-xl font-bold">Customers</h1>
-        <p className="text-sm text-slate-600">{customers.length} customers • Search is live • Try adding one and watch Dashboard update.</p>
+        <p className="text-sm text-slate-600">{customers.length} customers ï¿½ Search is live ï¿½ Try adding one and watch Dashboard update.</p>
       </div>
       <Button onClick={()=>setOpen(true)} className="gap-2"><Plus className="w-4 h-4"/> Add Customer</Button>
     </div>
@@ -66,7 +94,7 @@ export default function Customers(){
               <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-medium">{c.name[0]}</div>
               <div>
                 <div className="font-semibold text-sm">{c.name}</div>
-                <div className="text-xs text-slate-500">{c.customerId} • {c.phone}</div>
+                <div className="text-xs text-slate-500">{c.customerId} ï¿½ {c.phone}</div>
               </div>
             </div>
             <Badge tone={c.overdue?"danger":c.outstanding?"warning":"success"}>{c.overdue?"Overdue":c.outstanding?"Owes":"Clear"}</Badge>
@@ -81,7 +109,7 @@ export default function Customers(){
             <button onClick={()=>{
               const inv=invoices.find(i=>i.customerId===c.id)
               if(inv){ addReminder({invoiceId:inv.id, channel:"whatsapp"}); push(`WhatsApp queued for ${c.name}`,"success")}
-              else push("No invoice to remind on — create one first","info")
+              else push("No invoice to remind on ï¿½ create one first","info")
             }} className="flex-1 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium min-h-[44px]">Remind</button>
           </div>
         </Card>)}
@@ -93,7 +121,7 @@ export default function Customers(){
             <thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="text-left p-3">Customer</th><th className="text-left">ID</th><th className="text-right">Outstanding</th><th className="text-right">Overdue</th><th className="text-right">Actions</th></tr></thead>
             <tbody>
               {list.map(c=> <tr key={c.id} className="border-t border-slate-200 hover:bg-slate-50">
-                <td className="p-3"><Link to={`/customers/${c.id}`} className="font-medium hover:underline">{c.name}</Link><div className="text-xs text-slate-500">{c.phone} • {c.email||"no email"}</div></td>
+                <td className="p-3"><Link to={`/customers/${c.id}`} className="font-medium hover:underline">{c.name}</Link><div className="text-xs text-slate-500">{c.phone} ï¿½ {c.email||"no email"}</div></td>
                 <td className="font-mono text-xs">{c.customerId}</td>
                 <td className="text-right font-medium">{formatCurrency(c.outstanding)}</td>
                 <td className="text-right"><span className={c.overdue?"text-red-600 font-medium":"text-slate-500"}>{formatCurrency(c.overdue)}</span></td>
@@ -110,7 +138,7 @@ export default function Customers(){
         <Input label="Customer name" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Musa Ibrahim" />
         <Input label="Phone" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="0803 ..." />
         <Input label="Email (optional)" value={email} onChange={e=>setEmail(e.target.value)} placeholder="musa@example.com" />
-        <div className="text-xs text-slate-500">Persists to localStorage — reload and it stays. Replace with POST /customers when backend ready.</div>
+        <div className="text-xs text-slate-500">{isLive ? "Live â€” saved to Django backend (tenant-isolated)" : "Demo â€” persists to localStorage. Set VITE_API_BASE_URL to your backend to go live."}</div>
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="secondary" onClick={()=>setOpen(false)} disabled={saving}>Cancel</Button>
           <Button onClick={add} disabled={saving}>{saving?"Saving...":"Save customer"}</Button>

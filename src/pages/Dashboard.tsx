@@ -4,6 +4,7 @@ import { formatCurrency } from "../utils/format"
 import { cashflow } from "../services/mock"
 import { useAuth } from "../hooks/useAuth"
 import { useStore } from "../services/store"
+import { isLive, liveListInvoices, liveListCustomers, liveListPayments } from "../services/live"
 import { Card } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
@@ -13,20 +14,36 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 
 export default function Dashboard(){
   const {user}=useAuth()
-  const {customers,invoices,payments,addReminder}=useStore()
+  const {customers:mockCustomers,invoices:mockInvoices,payments:mockPayments,addReminder}=useStore()
   const {push}=useToast()
   const [range,setRange]=useState("7 days")
   const [loading,setLoading]=useState(true)
-  useEffect(()=>{ const t=setTimeout(()=>setLoading(false),450); return ()=>clearTimeout(t)},[])
+  const [liveCustomers,setLiveCustomers]=useState<any[]|null>(null)
+  const [liveInvoices,setLiveInvoices]=useState<any[]|null>(null)
+  const [livePayments,setLivePayments]=useState<any[]|null>(null)
+  useEffect(()=>{
+    if(isLive){
+      Promise.all([liveListCustomers(), liveListInvoices(), liveListPayments()]).then(([c,i,p])=>{
+        if(c) setLiveCustomers(c.results.map((x:any)=>({ id:x.id, name:x.name, phone:x.phone, customerId:x.customer_code, outstanding:Number(x.outstanding), overdue:Number(x.overdue)})))
+        if(i) setLiveInvoices(i.results.map((x:any)=>({ id:x.id, number:x.invoice_number, customerName: x.customer, dueDate:x.due_date, status:x.status, balance:Number(x.balance), total:Number(x.total)})))
+        if(p) setLivePayments(p.results.map((x:any)=>({ id:x.id, amount:Number(x.amount), status:x.status, date:x.created_at })))
+      }).finally(()=> setLoading(false))
+    } else {
+      const t=setTimeout(()=>setLoading(false),450); return ()=>clearTimeout(t)
+    }
+  },[])
+  const customers = (isLive && liveCustomers) ? liveCustomers : mockCustomers
+  const invoices = (isLive && liveInvoices) ? liveInvoices : mockInvoices
+  const payments = (isLive && livePayments) ? livePayments : mockPayments
   const hour=new Date().getHours()
   const greet= hour<12?"Good morning": hour<18?"Good afternoon":"Good evening"
 
-  const totalOutstanding = invoices.reduce((a,b)=>a+b.balance,0)
-  const dueToday = invoices.filter(i=> i.dueDate===new Date().toISOString().slice(0,10)).reduce((a,b)=>a+b.balance,0)
-  const overdue = invoices.filter(i=> i.status==="overdue").reduce((a,b)=>a+b.balance,0)
-  const collectedMonth = payments.filter(p=> p.status==="successful" && p.date.startsWith("2026-09")).reduce((a,b)=>a+b.amount,0)
+  const totalOutstanding = invoices.reduce((a:any,b:any)=>a+Number(b.balance||0),0)
+  const dueToday = invoices.filter((i:any)=> (i.dueDate||"").slice(0,10)===new Date().toISOString().slice(0,10)).reduce((a:any,b:any)=>a+Number(b.balance||0),0)
+  const overdue = invoices.filter((i:any)=> i.status==="overdue").reduce((a:any,b:any)=>a+Number(b.balance||0),0)
+  const collectedMonth = payments.filter((p:any)=> p.status==="successful" && (p.date||"").startsWith("2026-09")).reduce((a:any,b:any)=>a+Number(b.amount||0),0)
 
-  const needs = [...customers].filter(c=>c.overdue>0||c.outstanding>0).sort((a,b)=> b.overdue - a.overdue).slice(0,3)
+  const needs = [...customers].filter((c:any)=>c.overdue>0||c.outstanding>0).sort((a:any,b:any)=> b.overdue - a.overdue).slice(0,3)
 
   if(loading) return <div className="space-y-4">
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{[1,2,3,4].map(i=> <StatSkeleton key={i}/>)}</div>
@@ -37,7 +54,7 @@ export default function Dashboard(){
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h1 className="text-2xl font-bold">{greet}, {user?.name?.split(" ")[0]}</h1>
-        <p className="text-sm text-slate-600">Here is what needs your attention today. <span className="text-xs px-2 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 ml-2">Live • updates as you work</span></p>
+        <p className="text-sm text-slate-600">Here is what needs your attention today. <span className="text-xs px-2 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 ml-2">Live ï¿½ updates as you work</span></p>
       </div>
       <div className="flex gap-2">
         <Link to="/invoices" className="px-4 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium min-h-[44px] inline-flex items-center">Create Invoice</Link>
@@ -46,17 +63,17 @@ export default function Dashboard(){
     </div>
 
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-      <Card className="p-5"><div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Outstanding</div><div className="text-xl md:text-2xl font-bold mt-2">{formatCurrency(totalOutstanding)}</div><div className="text-xs text-slate-500 mt-1">Across {customers.length} customers • Live</div></Card>
+      <Card className="p-5"><div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Outstanding</div><div className="text-xl md:text-2xl font-bold mt-2">{formatCurrency(totalOutstanding)}</div><div className="text-xs text-slate-500 mt-1">Across {customers.length} customers ï¿½ Live</div></Card>
       <Card className="p-5"><div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Due Today</div><div className="text-xl md:text-2xl font-bold mt-2">{formatCurrency(dueToday)}</div><div className="text-xs text-amber-700 mt-1">{invoices.filter(i=>i.dueDate===new Date().toISOString().slice(0,10)).length} invoices due</div></Card>
       <Card className="p-5"><div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Overdue</div><div className="text-xl md:text-2xl font-bold mt-2 text-red-600">{formatCurrency(overdue)}</div><div className="text-xs text-red-600 mt-1">{invoices.filter(i=>i.status==="overdue").length} need follow-up</div></Card>
-      <Card className="p-5"><div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Collected This Month</div><div className="text-xl md:text-2xl font-bold mt-2 text-emerald-600">{formatCurrency(collectedMonth)}</div><div className="text-xs text-slate-500 mt-1">{payments.length} payments • Live</div></Card>
+      <Card className="p-5"><div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Collected This Month</div><div className="text-xl md:text-2xl font-bold mt-2 text-emerald-600">{formatCurrency(collectedMonth)}</div><div className="text-xs text-slate-500 mt-1">{payments.length} payments ï¿½ Live</div></Card>
     </div>
 
     <div className="grid lg:grid-cols-3 gap-4">
       <Card className="lg:col-span-2 p-5">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">Needs Attention</h2>
-          <span className="text-xs text-slate-500">Most overdue first • real balances</span>
+          <span className="text-xs text-slate-500">Most overdue first ï¿½ real balances</span>
         </div>
         <div className="mt-4 space-y-3">
           {needs.length? needs.map(c=> <div key={c.id} className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-white">
@@ -64,7 +81,7 @@ export default function Dashboard(){
               <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-medium">{c.name[0]}</div>
               <div>
                 <div className="text-sm font-semibold flex items-center gap-2">{c.name} <Badge tone={c.overdue>0?"danger":"warning"}>{c.overdue>0?"Overdue":"Due"}</Badge></div>
-                <div className="text-sm text-slate-600">{formatCurrency(c.overdue || c.outstanding)} • {c.phone}</div>
+                <div className="text-sm text-slate-600">{formatCurrency(c.overdue || c.outstanding)} ï¿½ {c.phone}</div>
                 <div className="text-xs text-slate-500 hidden md:block">ID: {c.customerId}</div>
               </div>
             </div>
@@ -72,11 +89,11 @@ export default function Dashboard(){
               <Link to={`/customers/${c.id}`} className="px-3 py-2 rounded-xl border border-slate-200 text-sm font-medium min-h-[44px] inline-flex items-center">View</Link>
               <Button size="sm" onClick={()=>{
                 const inv=invoices.find(i=> i.customerId===c.id)
-                if(inv){ addReminder({invoiceId:inv.id, channel:"whatsapp"}); push(`Reminder queued for ${c.name} • WhatsApp`,"success")}
+                if(inv){ addReminder({invoiceId:inv.id, channel:"whatsapp"}); push(`Reminder queued for ${c.name} ï¿½ WhatsApp`,"success")}
                 else push("Create an invoice first","info")
               }}>Send Reminder</Button>
             </div>
-          </div>): <div className="text-sm text-slate-500 p-4 border border-dashed rounded-xl text-center">All caught up — no overdue balances. Add a customer or create an invoice to see this update live.</div>}
+          </div>): <div className="text-sm text-slate-500 p-4 border border-dashed rounded-xl text-center">All caught up ï¿½ no overdue balances. Add a customer or create an invoice to see this update live.</div>}
         </div>
       </Card>
 
