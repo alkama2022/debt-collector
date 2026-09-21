@@ -22,7 +22,7 @@ export default function Signup(){
     if(pwd.length<6) fe.pwd="Min 6 characters"
     setFieldErr(fe)
     if(Object.keys(fe).length) return
-    try{ await signup({name,email}); push("Account created","success"); nav("/onboarding")}catch{ setErr("Unable to create account. Try again.")}
+    try{ await signup({name,email,password:pwd}); push("Account created","success"); nav("/onboarding")}catch{ setErr("Unable to create account. Try again.")}
   }
   return <div className="min-h-screen bg-[#f8fafc] flex">
     <div className="flex-1 max-w-md mx-auto px-6 py-8">
@@ -47,7 +47,7 @@ export default function Signup(){
           <li>2. Create first customer</li>
           <li>3. Create first invoice ? see balance</li>
         </ol>
-        <div className="mt-6 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600">Localization defaults: Nigeria • NGN • Africa/Lagos • English — configurable for global use.</div>
+        <div className="mt-6 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600">Localization defaults: Nigeria ï¿½ NGN ï¿½ Africa/Lagos ï¿½ English ï¿½ configurable for global use.</div>
       </div>
     </div>
   </div>

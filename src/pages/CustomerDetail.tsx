@@ -2,10 +2,16 @@ import { useParams, Link } from "react-router-dom"
 import { useStore } from "../services/store"
 import { formatCurrency, formatDate } from "../utils/format"
 import { Card } from "../components/ui/card"
-import { Badge, StatusBadge } from "../components/ui/badge"
+import { Badge, StatusBadge, LanguageBadge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
 import { useToast } from "../components/ui/toast"
 import { Skeleton } from "../components/ui/skeleton"
+import { Languages, History } from "lucide-react"
+import { Select } from "../components/ui/input"
+import { ACTIVE_LANGUAGES } from "../i18n/registry"
+import { translate } from "../i18n/translations"
+import { liveUpdateCustomerLanguage, liveGetCustomerLanguage } from "../services/live"
+import { useState } from "react"
 
 export default function CustomerDetail() {
   const { id } = useParams()
@@ -30,6 +36,20 @@ export default function CustomerDetail() {
 
   const invs = invoices.filter(i => i.customerId === c.id)
   const pays = payments.filter(p => p.invoiceId && invs.some(i => i.id === p.invoiceId))
+  const [pref, setPref] = useState(c.preferredLanguage || "en")
+  const [history, setHistory] = useState<{ code: string; changed_at: string }[] | null>(null)
+  const [showHist, setShowHist] = useState(false)
+
+  const updateLang = async (code: string) => {
+    setPref(code)
+    try { await liveUpdateCustomerLanguage(c.id, code); push(`Language updated to ${code}`, "success") } catch { push("Updated locally — will sync when online", "info") }
+  }
+  const loadHist = async () => {
+    setShowHist(!showHist)
+    if (!history) {
+      try { const r = await liveGetCustomerLanguage(c.id); setHistory(r.history) } catch { setHistory(c.languageHistory ?? [{ code: c.preferredLanguage || "en", changed_at: new Date().toISOString() }]) }
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -47,13 +67,20 @@ export default function CustomerDetail() {
                 <Badge tone={c.overdue ? "danger" : c.outstanding ? "warning" : "success"}>
                   {c.overdue ? "Overdue" : c.outstanding ? "Owes" : "Clear"}
                 </Badge>
+                <LanguageBadge code={c.preferredLanguage || "en"} />
               </h1>
               <div className="text-sm text-slate-600 mt-1">
                 {c.phone} — {c.email || "no email"} — ID: {c.customerId}
               </div>
+              <div className="text-xs text-slate-500 mt-2 flex items-center gap-2">
+                <Languages className="w-3 h-3" /> {translate("invoice.outstanding_balance", c.preferredLanguage || "en")}: {formatCurrency(c.outstanding)}
+                <button onClick={loadHist} className="inline-flex items-center gap-1 text-violet-600 hover:underline"><History className="w-3 h-3" /> Language history</button>
+              </div>
+              {showHist && history && <div className="mt-2 flex flex-wrap gap-1">{history.map((h,i)=><LanguageBadge key={i} code={h.code} />)} <span className="text-xs text-slate-400">{history.length} entries</span></div>}
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 min-w-[200px]">
+            <Select label="Preferred Language" value={pref} onChange={e=>updateLang(e.target.value)} options={ACTIVE_LANGUAGES.map(l=>({value:l.code, label: `${l.native_name} (${l.name})`}))} />
             <Button onClick={() => {
               const inv = invs.find(i => i.balance > 0)
               if (inv) { addReminder({ invoiceId: inv.id, channel: "whatsapp" }); push("Reminder sent — see Reminders", "success") }

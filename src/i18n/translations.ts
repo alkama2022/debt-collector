@@ -153,7 +153,7 @@ export function translate(key: string, lang: string = "en", vars?: Record<string
   let str = dict[key] ?? en[key] ?? key
   if (vars) {
     for (const [k, v] of Object.entries(vars)) {
-      str = str.replaceAll(`{{${k}}}`, String(v))
+      str = str.split(`{{${k}}}`).join(String(v))
     }
   }
   return str

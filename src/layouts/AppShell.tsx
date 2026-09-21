@@ -11,6 +11,7 @@ const nav=[
   {to:"/payments", label:"Payments", icon:CreditCard},
   {to:"/reminders", label:"Reminders", icon:Bell},
   {to:"/reports", label:"Reports", icon:BarChart3},
+  {to:"/languages", label:"Languages", icon:Languages},
   {to:"/settings", label:"Settings", icon:Settings},
 ]
 
