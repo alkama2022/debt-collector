@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Link } from "react-router-dom"
-import { mockCustomers } from "../services/mock"
+import { useStore } from "../services/store"
 import { formatCurrency } from "../utils/format"
 import { Card } from "../components/ui/card"
 import { Input } from "../components/ui/input"
@@ -9,30 +9,41 @@ import { Badge } from "../components/ui/badge"
 import { EmptyState } from "../components/ui/empty"
 import { Modal } from "../components/ui/modal"
 import { useToast } from "../components/ui/toast"
+import { Skeleton } from "../components/ui/skeleton"
 import { Search, Plus, Users } from "lucide-react"
 
 export default function Customers(){
+  const {customers,addCustomer,addReminder,invoices}=useStore()
   const {push}=useToast()
+  const [loading,setLoading]=useState(true)
+  useEffect(()=>{ const t=setTimeout(()=>setLoading(false),350); return ()=>clearTimeout(t)},[])
   const [q,setQ]=useState("")
   const [filter,setFilter]=useState<"all"|"overdue"|"archived">("all")
   const [open,setOpen]=useState(false)
   const [name,setName]=useState("")
   const [phone,setPhone]=useState("")
-  const list=useMemo(()=> mockCustomers.filter(c=> {
-    const m=q? c.name.toLowerCase().includes(q.toLowerCase())||c.customerId.toLowerCase().includes(q.toLowerCase()):true
+  const [email,setEmail]=useState("")
+  const [saving,setSaving]=useState(false)
+  const list=useMemo(()=> customers.filter(c=> {
+    const m=q? c.name.toLowerCase().includes(q.toLowerCase())||c.customerId.toLowerCase().includes(q.toLowerCase())||(c.phone||"").includes(q):true
     const f= filter==="overdue"? c.overdue>0 : filter==="archived"? c.status==="archived": c.status==="active"
     return m&&f
-  }),[q,filter])
+  }),[customers,q,filter])
   const add=()=>{
     if(!name){ push("Name required","error"); return}
-    push("Customer added (demo) — wire to POST /customers","success")
-    setOpen(false); setName(""); setPhone("")
+    setSaving(true)
+    setTimeout(()=>{
+      addCustomer({name,phone,email})
+      push(`${name} added • balances start at ?0`,"success")
+      setOpen(false); setName(""); setPhone(""); setEmail(""); setSaving(false)
+    },600)
   }
+  if(loading) return <div className="space-y-3"><Skeleton className="h-16 w-full"/><Skeleton className="h-64 w-full"/></div>
   return <div className="space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h1 className="text-xl font-bold">Customers</h1>
-        <p className="text-sm text-slate-600">Search, filter, add, archive. Cards on mobile, table on desktop.</p>
+        <p className="text-sm text-slate-600">{customers.length} customers • Search is live • Try adding one and watch Dashboard update.</p>
       </div>
       <Button onClick={()=>setOpen(true)} className="gap-2"><Plus className="w-4 h-4"/> Add Customer</Button>
     </div>
@@ -40,14 +51,14 @@ export default function Customers(){
     <Card className="p-4 flex flex-col md:flex-row gap-3">
       <div className="flex-1 relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search by name or ID" className="w-full h-11 pl-9 pr-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search by name, ID or phone" className="w-full h-11 pl-9 pr-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
       </div>
       <div className="flex gap-1">
         {["all","overdue","archived"].map(f=> <button key={f} onClick={()=>setFilter(f as any)} className={`px-3 py-2 rounded-xl text-sm font-medium border capitalize ${filter===f?"bg-slate-900 text-white border-slate-900":"bg-white border-slate-200"}`}>{f}</button>)}
       </div>
     </Card>
 
-    {list.length===0 ? <EmptyState title="No customers yet" desc="Add your first customer to start tracking payments." icon={<Users className="w-6 h-6"/>} action={{label:"Add Customer", onClick:()=>setOpen(true)}} /> : <>
+    {list.length===0 ? <EmptyState title="No customers yet" desc="Add your first customer to start tracking payments. It will appear here and on Dashboard instantly." icon={<Users className="w-6 h-6"/>} action={{label:"Add Customer", onClick:()=>setOpen(true)}} /> : <>
       <div className="grid md:hidden gap-3">
         {list.map(c=> <Card key={c.id} className="p-4">
           <div className="flex justify-between">
@@ -58,7 +69,7 @@ export default function Customers(){
                 <div className="text-xs text-slate-500">{c.customerId} • {c.phone}</div>
               </div>
             </div>
-            <Badge tone={c.overdue?"danger":"success"}>{c.overdue?"Overdue":"Active"}</Badge>
+            <Badge tone={c.overdue?"danger":c.outstanding?"warning":"success"}>{c.overdue?"Overdue":c.outstanding?"Owes":"Clear"}</Badge>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">
             <div className="p-2 rounded-xl bg-slate-50 border"><div className="text-xs text-slate-500">Invoiced</div><div className="text-sm font-semibold">{formatCurrency(c.totalInvoiced)}</div></div>
@@ -67,7 +78,11 @@ export default function Customers(){
           </div>
           <div className="mt-3 flex gap-2">
             <Link to={`/customers/${c.id}`} className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white text-center text-sm font-medium min-h-[44px] flex items-center justify-center">View</Link>
-            <button onClick={()=>push("Reminder sent (demo)","success")} className="flex-1 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium min-h-[44px]">Remind</button>
+            <button onClick={()=>{
+              const inv=invoices.find(i=>i.customerId===c.id)
+              if(inv){ addReminder({invoiceId:inv.id, channel:"whatsapp"}); push(`WhatsApp queued for ${c.name}`,"success")}
+              else push("No invoice to remind on — create one first","info")
+            }} className="flex-1 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium min-h-[44px]">Remind</button>
           </div>
         </Card>)}
       </div>
@@ -78,7 +93,7 @@ export default function Customers(){
             <thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="text-left p-3">Customer</th><th className="text-left">ID</th><th className="text-right">Outstanding</th><th className="text-right">Overdue</th><th className="text-right">Actions</th></tr></thead>
             <tbody>
               {list.map(c=> <tr key={c.id} className="border-t border-slate-200 hover:bg-slate-50">
-                <td className="p-3"><Link to={`/customers/${c.id}`} className="font-medium hover:underline">{c.name}</Link><div className="text-xs text-slate-500">{c.phone} • {c.email}</div></td>
+                <td className="p-3"><Link to={`/customers/${c.id}`} className="font-medium hover:underline">{c.name}</Link><div className="text-xs text-slate-500">{c.phone} • {c.email||"no email"}</div></td>
                 <td className="font-mono text-xs">{c.customerId}</td>
                 <td className="text-right font-medium">{formatCurrency(c.outstanding)}</td>
                 <td className="text-right"><span className={c.overdue?"text-red-600 font-medium":"text-slate-500"}>{formatCurrency(c.overdue)}</span></td>
@@ -94,10 +109,11 @@ export default function Customers(){
       <div className="space-y-3">
         <Input label="Customer name" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Musa Ibrahim" />
         <Input label="Phone" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="0803 ..." />
-        <div className="text-xs text-slate-500">Every input has a visible label • 44px touch target • Validates and preserves input.</div>
+        <Input label="Email (optional)" value={email} onChange={e=>setEmail(e.target.value)} placeholder="musa@example.com" />
+        <div className="text-xs text-slate-500">Persists to localStorage — reload and it stays. Replace with POST /customers when backend ready.</div>
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="secondary" onClick={()=>setOpen(false)}>Cancel</Button>
-          <Button onClick={add}>Save customer</Button>
+          <Button variant="secondary" onClick={()=>setOpen(false)} disabled={saving}>Cancel</Button>
+          <Button onClick={add} disabled={saving}>{saving?"Saving...":"Save customer"}</Button>
         </div>
       </div>
     </Modal>

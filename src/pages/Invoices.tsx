@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react"
 import { Link } from "react-router-dom"
-import { mockInvoices, mockCustomers } from "../services/mock"
+import { useStore } from "../services/store"
 import { formatCurrency, formatDate } from "../utils/format"
 import { Card } from "../components/ui/card"
 import { Button } from "../components/ui/button"
@@ -12,27 +12,37 @@ import { useToast } from "../components/ui/toast"
 import { FileText, Plus } from "lucide-react"
 
 export default function Invoices(){
+  const {invoices,customers,addInvoice}=useStore()
   const {push}=useToast()
   const [q,setQ]=useState("")
   const [status,setStatus]=useState("all")
   const [open,setOpen]=useState(false)
-  const [cust,setCust]=useState(mockCustomers[0].id)
+  const [cust,setCust]=useState(customers[0]?.id || "")
   const [amt,setAmt]=useState("75000")
-  const [due,setDue]=useState("2026-09-30")
-  const filtered=useMemo(()=> mockInvoices.filter(i=> {
+  const [due,setDue]=useState(new Date(Date.now()+86400000*7).toISOString().slice(0,10))
+  const [desc,setDesc]=useState("Service fee")
+  const [notes,setNotes]=useState("")
+  const [saving,setSaving]=useState(false)
+  const filtered=useMemo(()=> invoices.filter(i=> {
     const m= q? i.number.toLowerCase().includes(q.toLowerCase())||i.customerName.toLowerCase().includes(q.toLowerCase()):true
     const s= status==="all"||i.status===status
     return m&&s
-  }),[q,status])
+  }),[invoices,q,status])
   const create=()=>{
-    push("Invoice created (demo) — totals computed by backend","success")
-    setOpen(false)
+    const n=Number(amt.replace(/[^0-9]/g,""))
+    if(!n || !cust){ push("Customer and amount required","error"); return}
+    setSaving(true)
+    setTimeout(()=>{
+      addInvoice({customerId:cust, amount:n, dueDate:due, desc})
+      push(`Invoice created • ${formatCurrency(n)} • watch customer balance update`,"success")
+      setOpen(false); setSaving(false)
+    },700)
   }
   return <div className="space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h1 className="text-xl font-bold">Invoices</h1>
-        <p className="text-sm text-slate-600">Create, view, duplicate, cancel, share, download — backend calculates totals.</p>
+        <p className="text-sm text-slate-600">{invoices.length} invoices • Create ? balance updates live • totals computed safely.</p>
       </div>
       <Button onClick={()=>setOpen(true)} className="gap-2"><Plus className="w-4 h-4"/> Create Invoice</Button>
     </div>
@@ -49,7 +59,7 @@ export default function Invoices(){
       </select>
     </Card>
 
-    {filtered.length===0 ? <EmptyState title="No invoices yet" desc="Create your first invoice to start tracking balances." icon={<FileText className="w-6 h-6"/>} action={{label:"Create Invoice", onClick:()=>setOpen(true)}} /> : <>
+    {filtered.length===0 ? <EmptyState title="No invoices yet" desc="Create your first invoice to start tracking balances. It will update customer outstanding instantly." icon={<FileText className="w-6 h-6"/>} action={{label:"Create Invoice", onClick:()=>setOpen(true)}} /> : <>
       <div className="grid md:hidden gap-3">
         {filtered.map(inv=> <Card key={inv.id} className="p-4">
           <div className="flex justify-between">
@@ -57,7 +67,7 @@ export default function Invoices(){
             <StatusBadge status={inv.status} />
           </div>
           <div className="text-sm mt-1">{inv.customerName}</div>
-          <div className="text-xs text-slate-500">Due {formatDate(inv.dueDate)} • {formatCurrency(inv.balance)} balance</div>
+          <div className="text-xs text-slate-500">Due {formatDate(inv.dueDate)} • {formatCurrency(inv.balance)} balance • {formatCurrency(inv.total)} total</div>
           <Link to={`/invoices/${inv.id}`} className="mt-3 block text-center py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium min-h-[44px] flex items-center justify-center">View</Link>
         </Card>)}
       </div>
@@ -84,14 +94,15 @@ export default function Invoices(){
 
     <Modal open={open} onClose={()=>setOpen(false)} title="Create invoice">
       <div className="space-y-3">
-        <Select label="Customer" value={cust} onChange={e=>setCust(e.target.value)} options={mockCustomers.map(c=>({value:c.id,label:c.name}))} />
+        <Select label="Customer" value={cust} onChange={e=>setCust(e.target.value)} options={customers.map(c=>({value:c.id,label:c.name}))} />
+        <Input label="Description" value={desc} onChange={e=>setDesc(e.target.value)} placeholder="e.g. School fees Term 1" />
         <Input label="Amount (NGN)" value={amt} onChange={e=>setAmt(e.target.value)} />
         <Input label="Due date" type="date" value={due} onChange={e=>setDue(e.target.value)} />
-        <Textarea label="Notes / Payment instructions" placeholder="Bank details, etc." />
-        <div className="p-3 rounded-xl bg-slate-50 border text-xs text-slate-600">Subtotal • Discount • Tax • Total • Amount paid • Balance — displayed from backend values. Frontend calc is preview only.</div>
+        <Textarea label="Notes / Payment instructions" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Bank: 0123456789 • Wema" />
+        <div className="p-3 rounded-xl bg-slate-50 border text-xs text-slate-600">Preview total: {formatCurrency(Number(amt.replace(/[^0-9]/g,""))||0)} • Backend will authoritatively calculate subtotal/discount/tax/total. This persists and updates customer & dashboard KPIs live.</div>
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={()=>setOpen(false)}>Cancel</Button>
-          <Button onClick={create}>Create</Button>
+          <Button variant="secondary" onClick={()=>setOpen(false)} disabled={saving}>Cancel</Button>
+          <Button onClick={create} disabled={saving}>{saving?"Creating...":"Create"}</Button>
         </div>
       </div>
     </Modal>
