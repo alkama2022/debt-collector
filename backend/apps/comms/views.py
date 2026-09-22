@@ -21,8 +21,34 @@ class CommunicationEventList(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         org = getattr(self.request, "org", None)
+        if org is None and hasattr(self.request.user, "memberships"):
+            m = self.request.user.memberships.select_related("org").first()
+            org = m.org if m else None
+        # Feature gate: check WHATSAPP/SMS/EMAIL entitlement + metered limit
+        channel = (serializer.validated_data.get("channel") or "").upper()
+        if org and channel in ("WHATSAPP", "SMS", "EMAIL"):
+            from apps.subscriptions.entitlements import check_feature_access, check_limit
+            feature_map = {"WHATSAPP": "WHATSAPP_REMINDERS", "SMS": "SMS_REMINDERS", "EMAIL": "EMAIL_REMINDERS"}
+            feat = feature_map.get(channel)
+            if feat:
+                allowed, reason = check_feature_access(org, feat)
+                if not allowed:
+                    from rest_framework.exceptions import PermissionDenied
+                    raise PermissionDenied({"detail": reason, "code": "FEATURE_NOT_ENTITLED"})
+            allowed2, reason2, info = check_limit(org, "WHATSAPP_MESSAGES" if channel=="WHATSAPP" else "SMS_MESSAGES" if channel=="SMS" else "EMAIL_MESSAGES", 1)
+            if not allowed2:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied({"detail": reason2, "code": "USAGE_LIMIT_REACHED"})
         idem = self.request.headers.get("X-Idempotency-Key") or self.request.headers.get("Idempotency-Key")
-        serializer.save(org=org, idempotency_key=idem or serializer.validated_data.get("idempotency_key"))
+        obj = serializer.save(org=org, idempotency_key=idem or serializer.validated_data.get("idempotency_key"))
+        # Meter usage
+        if org and channel:
+            try:
+                from apps.subscriptions.usage import commit_or_create_usage
+                key = f"WHATSAPP_MESSAGE" if channel=="WHATSAPP" else channel
+                commit_or_create_usage(org, key, 1, idempotency_key=idem or str(obj.id), unit="message", metadata={"channel": channel})
+            except Exception:
+                pass
 
 class CommunicationEventDetail(generics.RetrieveAPIView):
     serializer_class = CommunicationEventSerializer

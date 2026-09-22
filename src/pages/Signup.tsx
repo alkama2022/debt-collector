@@ -20,10 +20,10 @@ export default function Signup(){
     const fe:Record<string,string>={}
     if(!name) fe.name="Business owner name required"
     if(!email) fe.email="Email required"
-    if(pwd.length<6) fe.pwd="Min 6 characters"
+    if(pwd.length<8) fe.pwd="Min 8 characters (server requires strong password)"
     setFieldErr(fe)
     if(Object.keys(fe).length) return
-    try{ await signup({name,email,password:pwd}); push("Account created","success"); nav("/onboarding")}catch{ setErr("Unable to create account. Try again.")}
+    try{ await signup({name,email,password:pwd}); push("Account created","success"); nav("/onboarding")}catch(e:any){ const msg=e?.data?.message || e?.data?.errors?.email?.[0] || e?.message || "Unable to create account. Try a stronger password or different email."; setErr(msg)}
   }
   return <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] flex transition-colors">
     <div className="flex-1 max-w-md mx-auto px-6 py-8">

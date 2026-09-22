@@ -14,6 +14,11 @@ import Reports from "./pages/Reports"
 import Settings from "./pages/Settings"
 import Languages from "./pages/Languages"
 import PayInvoice from "./pages/PayInvoice"
+import Pricing from "./pages/Pricing"
+import Billing from "./pages/Billing"
+import Usage from "./pages/Usage"
+import BillingInvoices from "./pages/BillingInvoices"
+import AdminBilling from "./pages/AdminBilling"
 import AppShell from "./layouts/AppShell"
 import { useAuth } from "./hooks/useAuth"
 
@@ -28,6 +33,7 @@ export default function App(){
     <Route path="/login" element={<Login/>} />
     <Route path="/signup" element={<Signup/>} />
     <Route path="/pay/:id" element={<PayInvoice/>} />
+    <Route path="/pricing" element={<Pricing/>} />
     <Route path="/onboarding" element={<Protected><Onboarding/></Protected>} />
     <Route element={<Protected><AppShell/></Protected>}>
       <Route path="/dashboard" element={<Dashboard/>} />
@@ -40,6 +46,11 @@ export default function App(){
       <Route path="/reports" element={<Reports/>} />
       <Route path="/languages" element={<Languages/>} />
       <Route path="/settings" element={<Settings/>} />
+      <Route path="/pricing" element={<Pricing/>} />
+      <Route path="/billing" element={<Billing/>} />
+      <Route path="/billing/usage" element={<Usage/>} />
+      <Route path="/billing/invoices" element={<BillingInvoices/>} />
+      <Route path="/admin/billing" element={<AdminBilling/>} />
     </Route>
     <Route path="*" element={<Navigate to="/" replace />} />
   </Routes>

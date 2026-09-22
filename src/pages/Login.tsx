@@ -17,7 +17,7 @@ export default function Login(){
     e.preventDefault()
     setErr("")
     if(!email||!pwd){ setErr("Email and password required"); return }
-    try{ await login(email,pwd); push("Welcome back","success"); nav("/dashboard")}catch{ setErr("Unable to sign in. Check connection and try again.")}
+    try{ await login(email,pwd); push("Welcome back","success"); nav("/dashboard")}catch(e:any){ const msg=e?.data?.message || e?.message || "Unable to sign in. Check email/password and try again."; setErr(msg)}
   }
   return <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] flex transition-colors">
     <div className="flex-1 max-w-md mx-auto px-6 py-12">

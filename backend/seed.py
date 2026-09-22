@@ -18,12 +18,13 @@ User = get_user_model()
 def run():
     # Clean idempotency for rerun
     org, _ = Organization.objects.get_or_create(slug="demo-workspace", defaults={"name":"Demo Workspace","is_demo":True})
-    user, _ = User.objects.get_or_create(email="owner@collectnaija.test", defaults={"name":"Test Owner"})
-    if not user.has_usable_password():
-        user.set_password("Test12345!")
-        user.save()
-    Membership.objects.get_or_create(org=org, user=user, defaults={"role":"owner"})
-    print(f"Org {org.id} User {user.email} / Test12345!")
+    for email, pwd, name in [("owner@collectnaija.test","Test12345!","Test Owner"), ("ade@collectnaija.demo","demo1234","Ade Demo")]:
+        u, _ = User.objects.get_or_create(email=email, defaults={"name": name})
+        u.set_password(pwd)
+        u.is_active = True
+        u.save()
+        Membership.objects.get_or_create(org=org, user=u, defaults={"role":"owner"})
+        print(f"Org {org.id} User {email} / {pwd}")
 
     # Customers
     customers = []

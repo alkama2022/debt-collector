@@ -33,7 +33,14 @@ class CustomerListCreate(generics.ListCreateAPIView):
         return qs
 
     def perform_create(self, serializer):
-        serializer.save()
+        org = self._get_org()
+        if org:
+            from apps.subscriptions.entitlements import check_limit
+            allowed, reason, info = check_limit(org, "CUSTOMER_LIMIT", 1)
+            if not allowed:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied({"detail": reason, "code": "LIMIT_REACHED", "limit": info.get("limit"), "used": info.get("used")})
+        serializer.save(org=org) if org else serializer.save()
 
 class CustomerDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = CustomerSerializer
@@ -93,6 +100,12 @@ class CustomerBulkCreateView(APIView):
                 lang_map[lang.code.lower()] = lang
         except Exception:
             pass
+
+        # Entitlement: check batch would exceed limit
+        from apps.subscriptions.entitlements import check_limit
+        allowed, reason, info = check_limit(org, "CUSTOMER_LIMIT", len(rows))
+        if not allowed:
+            return Response({"success": False, "message": reason, "code": "LIMIT_REACHED", "limit": info.get("limit"), "used": info.get("used")}, status=status.HTTP_429_TOO_MANY_REQUESTS)
 
         created = []
         errors = []

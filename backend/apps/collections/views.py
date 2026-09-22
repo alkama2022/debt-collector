@@ -28,6 +28,15 @@ class CampaignListCreate(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         org = getattr(self.request, "org", None)
+        if org is None and hasattr(self.request, "user") and self.request.user.is_authenticated:
+            m = self.request.user.memberships.select_related("org").first()
+            org = m.org if m else None
+        if org:
+            from apps.subscriptions.entitlements import check_feature_access
+            from rest_framework.exceptions import PermissionDenied
+            allowed, reason = check_feature_access(org, "COLLECTION_CAMPAIGNS")
+            if not allowed:
+                raise PermissionDenied({"detail": reason, "code": "FEATURE_NOT_ENTITLED"})
         serializer.save(org=org)
 
 class CampaignDetail(generics.RetrieveUpdateDestroyAPIView):

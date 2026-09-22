@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom"
-import { LayoutDashboard, Users, FileText, CreditCard, Bell, BarChart3, Settings, Menu, X, Search, LogOut, Building2, WifiOff, Languages } from "lucide-react"
+import { LayoutDashboard, Users, FileText, CreditCard, Bell, BarChart3, Settings, Menu, X, Search, LogOut, Building2, WifiOff, Languages, Wallet, Gauge, Tags } from "lucide-react"
 import { useAuth } from "../hooks/useAuth"
 import { useStore } from "../services/store"
 import { useState, useEffect } from "react"
@@ -13,6 +13,9 @@ const nav=[
   {to:"/reminders", label:"Reminders", icon:Bell},
   {to:"/reports", label:"Reports", icon:BarChart3},
   {to:"/languages", label:"Languages", icon:Languages},
+  {to:"/pricing", label:"Pricing", icon:Tags},
+  {to:"/billing", label:"Billing", icon:Wallet},
+  {to:"/billing/usage", label:"Usage", icon:Gauge},
   {to:"/settings", label:"Settings", icon:Settings},
 ]
 

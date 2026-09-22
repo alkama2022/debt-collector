@@ -18,7 +18,29 @@ class AIConversationListCreate(generics.ListCreateAPIView):
         return AIConversation.objects.for_org(org).prefetch_related("messages")
 
     def perform_create(self, serializer):
-        serializer.save(org=getattr(self.request, "org", None))
+        org = getattr(self.request, "org", None)
+        if org is None and hasattr(self.request, "user") and self.request.user.is_authenticated:
+            m = self.request.user.memberships.select_related("org").first()
+            org = m.org if m else None
+        if org:
+            from apps.subscriptions.entitlements import check_feature_access
+            from rest_framework.exceptions import PermissionDenied
+            allowed, reason = check_feature_access(org, "AI_CONVERSATIONS")
+            if not allowed:
+                raise PermissionDenied({"detail": reason, "code": "FEATURE_NOT_ENTITLED"})
+            # limit check
+            from apps.subscriptions.usage import check_usage_available
+            from decimal import Decimal
+            ok, r = check_usage_available(org, "AI_CONVERSATIONS", Decimal(1))
+            if not ok:
+                raise PermissionDenied({"detail": r, "code": "USAGE_LIMIT_REACHED"})
+        obj = serializer.save(org=org)
+        if org:
+            try:
+                from apps.subscriptions.usage import commit_or_create_usage
+                commit_or_create_usage(org, "AI_CONVERSATIONS", 1, idempotency_key=str(obj.id), unit="conversation")
+            except Exception:
+                pass
 
 class AIConversationDetail(generics.RetrieveUpdateAPIView):
     serializer_class = AIConversationSerializer
@@ -97,6 +119,7 @@ class GenerateResponseView(APIView):
         text = request.data.get("text") or ""
         customer_id = request.data.get("customer_id")
         target_lang = request.data.get("language") or request.data.get("target_language")
+        intent = (request.data.get("intent") or "").strip().lower()  # reminder|overdue|negotiation|promise|receipt|human_handoff
         from apps.languages.router import MultilingualLanguageRouter
         router = MultilingualLanguageRouter()
         if not target_lang and customer_id:
@@ -108,23 +131,86 @@ class GenerateResponseView(APIView):
             except Exception:
                 target_lang = "en"
         target_lang = target_lang or "en"
+        # Auto-detect intent if not given — simple heuristic for natural routing
+        if not intent:
+            low = text.lower()
+            if any(k in low for k in ["promise", "pay on", "will pay", "next week", "tomorrow"]):
+                intent = "promise"
+            elif any(k in low for k in ["can't pay", "no money", "split", "installment", "small small", "half"]):
+                intent = "negotiation"
+            elif any(k in low for k in ["overdue", "late"]):
+                intent = "overdue"
+            elif any(k in low for k in ["thank", "receipt", "paid"]):
+                intent = "receipt"
+            else:
+                intent = "reminder"
+        # Try LLM first if configured, else natural template
+        llm_text = None
+        from django.conf import settings as _s
+        provider = getattr(_s, "AI_PROVIDER", "mock")
+        if provider in ("openai", "anthropic") and (getattr(_s, "OPENAI_API_KEY", "") or getattr(_s, "ANTHROPIC_API_KEY", "")):
+            try:
+                llm_text = _call_llm_for_intent(intent, target_lang, text, request.data)
+            except Exception:
+                llm_text = None
         from apps.languages.templates import render_template, TERMINOLOGY
-        tmpl = render_template(target_lang, "reminder", {
+        ctx = {
             "customer_name": request.data.get("customer_name") or "Customer",
             "business_name": request.data.get("business_name") or "Your business",
-            "amount_due": request.data.get("amount_due") or "₦85,000",
+            "amount_owed": (request.data.get("amount_due") or request.data.get("amount_owed") or "85,000").replace("₦","").strip(),
+            "amount_due": (request.data.get("amount_due") or "85,000"),
+            "due_date_value": request.data.get("due_date") or "2026-10-05",
             "due_date": request.data.get("due_date") or "2026-10-05",
-            "payment_link": request.data.get("payment_link") or "https://pay.collectnaija.test/p/xxx",
-        })
+            "pay_link": request.data.get("payment_link") or request.data.get("pay_link") or "https://pay.collectnaija.test/p/xxx",
+            "invoice_number": request.data.get("invoice_number") or "INV-001",
+            "outstanding_balance": request.data.get("outstanding_balance") or request.data.get("amount_due") or "85,000",
+        }
+        tmpl = llm_text or render_template(intent if intent in ("reminder","overdue","negotiation","promise","receipt","human_handoff") else "reminder", target_lang, ctx)
         detected, conf = router.detect_language(text) if text else (target_lang, 0.9)
         return Response({
             "detected_language": detected,
             "confidence": round(float(conf), 2),
             "response_language": target_lang,
+            "intent": intent,
             "response": tmpl,
             "terminology": TERMINOLOGY.get(target_lang, TERMINOLOGY["en"]),
-            "note": "Generated via Multilingual AI (context-aware, not sentence-translate) — amount preserved from backend Decimal."
+            "provider": "llm" if llm_text else "natural-template",
+            "note": "Natural, warm Nigerian business tone — not robotic. Amount preserved from backend Decimal; LLM only styles, never recalculates."
         })
+
+def _call_llm_for_intent(intent: str, lang: str, user_text: str, data: dict) -> str | None:
+    """Call OpenAI/Anthropic with strict guardrails: never invent amounts."""
+    from django.conf import settings as _s
+    import requests
+    amount = (data.get("amount_due") or data.get("amount_owed") or "85,000")
+    prompt = (
+        f"You are CollectNaija, a warm, professional Nigerian collection assistant. "
+        f"Language: {lang}. Intent: {intent}. Customer says: \"{user_text[:400]}\". "
+        f"Write a short WhatsApp message (2-3 sentences, human, empathetic, not demanding). "
+        f"Use exact amount {amount} and link {data.get('payment_link') or data.get('pay_link') or 'https://pay.collectnaija.test/p/xxx'}. "
+        f"Offer payment plan if intent is negotiation. Keep Nigerian polite tone. No markdown."
+    )
+    if getattr(_s, "OPENAI_API_KEY", ""):
+        try:
+            r = requests.post("https://api.openai.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {_s.OPENAI_API_KEY}", "Content-Type": "application/json"},
+                json={"model": "gpt-4o-mini", "messages": [{"role": "user", "content": prompt}], "max_tokens": 180, "temperature": 0.7},
+                timeout=12)
+            j = r.json()
+            return j["choices"][0]["message"]["content"].strip()
+        except Exception:
+            return None
+    if getattr(_s, "ANTHROPIC_API_KEY", ""):
+        try:
+            r = requests.post("https://api.anthropic.com/v1/messages",
+                headers={"x-api-key": _s.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "Content-Type": "application/json"},
+                json={"model": "claude-3-haiku-20240307", "max_tokens": 180, "messages": [{"role": "user", "content": prompt}]},
+                timeout=12)
+            j = r.json()
+            return j["content"][0]["text"].strip()
+        except Exception:
+            return None
+    return None
 
 
 class VoiceLanguageView(APIView):
