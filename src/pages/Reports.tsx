@@ -80,7 +80,7 @@ export default function Reports() {
     try {
       const token = localStorage.getItem("cn_token")
       const orgId = localStorage.getItem("cn_org_id")
-      const apiBase = import.meta.env.VITE_API_BASE_URL || ""
+      const apiBase = (import.meta as any).env.VITE_API_BASE_URL || ""
       const res = await fetch(`${apiBase}/reports/export?format=${fmt}&range=${range}`, {
         headers: {
           Authorization: `Bearer ${token}`,
