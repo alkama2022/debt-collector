@@ -18,14 +18,31 @@ export async function apiFetch<T>(path: string, opts: ApiOpts = {}): Promise<T> 
   if (orgId) {
     headers["X-Org-Id"] = orgId
   }
-  // Nigerian Multilingual — send org language context
-  const orgLang = typeof localStorage !== "undefined" ? (localStorage.getItem("cn_dashboard_lang") || localStorage.getItem("cn_lang")) : null
-  if (orgLang && !headers["X-Org-Language"] && !headers["Accept-Language"]) {
+
+  // Send org language context for multilingual AI responses
+  const orgLang =
+    typeof localStorage !== "undefined"
+      ? localStorage.getItem("cn_dashboard_lang") || localStorage.getItem("cn_lang")
+      : null
+  if (orgLang && !headers["X-Org-Language"]) {
     headers["X-Org-Language"] = orgLang
     headers["Accept-Language"] = orgLang
   }
 
-  const res = await fetch(`${config.apiBaseUrl}${path}`, { ...opts, headers })
+  let res: Response
+  try {
+    res = await fetch(`${config.apiBaseUrl}${path}`, { ...opts, headers })
+  } catch (networkErr) {
+    // Network error — backend unreachable (offline, CORS, or server sleeping on free tier)
+    throw {
+      status: 0,
+      data: {
+        message:
+          "Cannot reach the server. Please check your internet connection or wait a moment — " +
+          "the server may be starting up (free tier can take ~30 seconds on first request).",
+      },
+    }
+  }
 
   // Token expired — attempt silent refresh once
   if (res.status === 401 && opts.auth !== false) {
@@ -52,7 +69,10 @@ async function tryRefreshToken(): Promise<boolean> {
   const refresh = localStorage.getItem("cn_refresh")
   if (!refresh) return false
   try {
-    const res = await fetch(`${config.apiBaseUrl.replace("/v1", "")}/api/v1/auth/refresh`, {
+    // Build the refresh URL correctly from apiBaseUrl
+    // apiBaseUrl is like "https://host/api/v1" — refresh endpoint is "/api/v1/auth/refresh"
+    const base = config.apiBaseUrl.replace(/\/api\/v1\/?$/, "")
+    const res = await fetch(`${base}/api/v1/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh }),

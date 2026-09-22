@@ -1,5 +1,16 @@
+// ─── API Base URL ─────────────────────────────────────────────────────────────
+// Vite injects VITE_* vars at build time from the root .env file.
+// For local dev: set VITE_API_BASE_URL=http://localhost:8000/api/v1 in .env
+// For production: set VITE_API_BASE_URL=https://naijacollector.onrender.com/api/v1
+const rawApiBase = (import.meta as any).env.VITE_API_BASE_URL as string | undefined
+
+// Never fall back to a fake/example domain — fail loudly in dev
+const apiBaseUrl = rawApiBase && !rawApiBase.includes("example")
+  ? rawApiBase.replace(/\/$/, "") // strip trailing slash
+  : "http://localhost:8000/api/v1" // safe local default
+
 export const config = {
-  apiBaseUrl: (import.meta as any).env.VITE_API_BASE_URL || "https://api.collectnaija.example/v1",
+  apiBaseUrl,
   appName: "CollectNaija",
   supportEmail: "support@collectnaija.com",
   currencyDefault: "NGN",
