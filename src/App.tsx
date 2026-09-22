@@ -23,7 +23,9 @@ const Billing = lazy(()=> import("./pages/Billing"))
 const Usage = lazy(()=> import("./pages/Usage"))
 const BillingInvoices = lazy(()=> import("./pages/BillingInvoices"))
 const AdminBilling = lazy(()=> import("./pages/AdminBilling"))
+const BillingSuccess = lazy(()=> import("./pages/BillingSuccess"))
 const Campaigns = lazy(()=> import("./pages/Campaigns"))
+
 
 function Protected({children}:{children:React.ReactNode}){
   const {user}=useAuth()
@@ -38,6 +40,7 @@ export default function App(){
     <Route path="/signup" element={<Signup/>} />
     <Route path="/pay/:id" element={<PayInvoice/>} />
     <Route path="/pricing" element={<Pricing/>} />
+    <Route path="/billing/success" element={<BillingSuccess/>} />
     <Route path="/onboarding" element={<Protected><Onboarding/></Protected>} />
     <Route element={<Protected><AppShell/></Protected>}>
       <Route path="/dashboard" element={<Dashboard/>} />

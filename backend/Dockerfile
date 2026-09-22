@@ -29,5 +29,5 @@ RUN python manage.py collectstatic --noinput
 # Render provides the PORT environment variable
 EXPOSE 8000
 
-# Production server
-CMD ["sh", "-c", "gunicorn config.wsgi:application --bind 0.0.0.0:${PORT} --workers 3 --timeout 60"]
+# Production server — migrate + seed plans then start
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py seed_billing && gunicorn config.wsgi:application --bind 0.0.0.0:${PORT} --workers 3 --timeout 60"]
