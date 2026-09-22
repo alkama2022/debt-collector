@@ -218,3 +218,23 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+# ── Test overrides ────────────────────────────────────────────────────────────
+# When running `manage.py test`, use a fast in-memory SQLite DB so tests
+# don't need a live PostgreSQL connection and run quickly.
+import sys
+if "test" in sys.argv or "pytest" in sys.argv:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "test_db.sqlite3",
+        }
+    }
+    # Run Celery tasks synchronously in tests (no broker needed)
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
+    # Use fast password hasher in tests
+    PASSWORD_HASHERS = [
+        "django.contrib.auth.hashers.MD5PasswordHasher",
+    ]
+    # Use in-memory email backend for tests
+    EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"

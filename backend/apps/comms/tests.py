@@ -2,7 +2,7 @@
 tests.py — Comms dispatch, idempotency, and opt-out tests.
 """
 from decimal import Decimal
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from django.test import TestCase
 from django.utils import timezone
 from django.contrib.auth import get_user_model
@@ -16,7 +16,7 @@ User = get_user_model()
 
 
 def _setup_comms():
-    user = User.objects.create_user(username="comms_tester", email="comms@test.com", password="pass1234")
+    user = User.objects.create_user(email="comms@test.com", password="pass1234", name="Comms Tester")
     org = Organization.objects.create(name="CommsOrg", slug="commsorg", timezone="Africa/Lagos")
     Membership.objects.create(user=user, org=org, role="owner")
     customer = Customer.objects.create(
@@ -113,7 +113,8 @@ class EnqueueRemindersTests(TestCase):
     def setUp(self):
         self.org, self.user, self.customer, self.invoice = _setup_comms()
 
-    def test_on_due_rule_creates_event_for_due_today(self):
+    @patch("apps.collections.tasks._is_quiet_hours", return_value=False)
+    def test_on_due_rule_creates_event_for_due_today(self, _mock_qh):
         """A rule with trigger=on_due should create an event for invoice due today."""
         ReminderRule.objects.create(
             org=self.org,
@@ -132,7 +133,8 @@ class EnqueueRemindersTests(TestCase):
             ).exists()
         )
 
-    def test_idempotency_prevents_duplicate_events(self):
+    @patch("apps.collections.tasks._is_quiet_hours", return_value=False)
+    def test_idempotency_prevents_duplicate_events(self, _mock_qh):
         """Running enqueue twice on the same day should not create duplicate events."""
         ReminderRule.objects.create(
             org=self.org,
@@ -151,7 +153,8 @@ class EnqueueRemindersTests(TestCase):
         ).count()
         self.assertEqual(count, 1)  # Only one, not two
 
-    def test_disabled_rule_skipped(self):
+    @patch("apps.collections.tasks._is_quiet_hours", return_value=False)
+    def test_disabled_rule_skipped(self, _mock_qh):
         """Disabled ReminderRules should not create events."""
         ReminderRule.objects.create(
             org=self.org,
