@@ -196,6 +196,8 @@ export default function Reports() {
             bg={data.kpis.collection_rate >= 50 ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-amber-50 dark:bg-amber-950/30"}
           />
         </div>
+      ) : !loading && !error ? (
+        <EmptyReports />
       ) : null}
 
       {/* Charts Row */}
