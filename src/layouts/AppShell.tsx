@@ -4,6 +4,14 @@ import { useAuth } from "../hooks/useAuth"
 import { useStore } from "../services/store"
 import { useState, useEffect } from "react"
 import { ThemeToggle } from "../components/ui/theme-toggle"
+import { FAB } from "../components/ui/fab"
+import { PaymentPoller } from "../hooks/usePaymentPolling"
+import { DemoSeeder } from "../hooks/useDemoSeed"
+import {
+  useKeyboardShortcuts,
+  ShortcutOverlay,
+  ShortcutActionBadge,
+} from "../hooks/useKeyboardShortcuts"
 
 const nav=[
   {to:"/dashboard", label:"Home", icon:LayoutDashboard},
@@ -50,7 +58,27 @@ export default function AppShell(){
   }
   const schoolMode = localStorage.getItem("cn_school")==="1"
   const isDemo = user?.org?.name?.toLowerCase().includes("demo") || localStorage.getItem("cn_demo")==="1"
+
+  // ── Keyboard shortcuts ───────────────────────────────────────────────────
+  const { showHelp, setShowHelp, pendingKey, lastAction } = useKeyboardShortcuts()
+
+  // ── Search input ref for / shortcut ──────────────────────────────────────
+  // data-search attribute on the input below lets the shortcut hook find it
   return <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] text-slate-900 dark:text-slate-100 transition-colors">
+    {/* Background services — no UI rendered */}
+    <PaymentPoller />
+    <DemoSeeder />
+
+    {/* Keyboard shortcut overlays */}
+    <ShortcutOverlay show={showHelp} onClose={() => setShowHelp(false)} />
+    <ShortcutActionBadge action={lastAction} />
+
+    {/* Pending key indicator — shows when user presses g or n */}
+    {pendingKey && (
+      <div className="fixed top-[72px] right-4 z-50 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-mono font-bold px-3 py-1.5 rounded-full shadow-lg pointer-events-none animate-in fade-in slide-in-from-top-1">
+        {pendingKey}…
+      </div>
+    )}
     {!online && <div className="bg-amber-600 text-white text-sm text-center py-2 px-4 flex items-center justify-center gap-2"><WifiOff className="w-4 h-4"/> You’re offline — changes will sync when you’re back.</div>}
     <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur border-b border-slate-200 dark:border-slate-800">
       <div className="max-w-[1440px] mx-auto px-4 lg:px-6 h-[64px] flex items-center gap-4">
@@ -62,7 +90,7 @@ export default function AppShell(){
         </div>
         <form onSubmit={onSearch} className="hidden md:flex flex-1 max-w-md mx-6 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
-          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search customers, invoices, payments" className="w-full h-10 pl-9 pr-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-colors" />
+          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search customers, invoices, payments" data-search className="w-full h-10 pl-9 pr-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-colors" />
         </form>
         <div className="ml-auto flex items-center gap-2">
           <select
@@ -79,6 +107,15 @@ export default function AppShell(){
             <option value="en">English</option><option value="ha">Hausa</option><option value="yo">Yorùbá</option><option value="ig">Igbo</option><option value="pcm">Pidgin</option>
           </select>
           <ThemeToggle />
+          {/* Shortcut hint button */}
+          <button
+            onClick={() => setShowHelp(h => !h)}
+            className="hidden md:flex w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-xs font-mono font-bold"
+            title="Keyboard shortcuts (?)"
+            aria-label="Keyboard shortcuts"
+          >
+            ?
+          </button>
           <button onClick={()=>setShowNotifs(!showNotifs)} className="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center relative dark:text-slate-200" aria-label="Notifications">
             <Bell className="w-4 h-4" />
             {unread>0 && <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 rounded-full border-2 border-white dark:border-slate-800 text-[10px] font-bold text-white flex items-center justify-center">{unread}</span>}
@@ -134,6 +171,27 @@ export default function AppShell(){
           <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">{user?.org.currency || "NGN"} · Africa/Lagos {schoolMode && "· School"}</div>
           <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">{customers.length} customers · {invoices.length} invoices</div>
           <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300"><span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"/> Live & secure</div>
+          {/* Sound toggle */}
+          <button
+            onClick={() => {
+              const next = localStorage.getItem("cn_sound_enabled") === "0" ? "1" : "0"
+              localStorage.setItem("cn_sound_enabled", next)
+              // Force re-render by triggering a storage event
+              window.dispatchEvent(new Event("storage"))
+            }}
+            className="mt-3 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"
+          >
+            {localStorage.getItem("cn_sound_enabled") === "0" ? "🔇 Sounds off" : "🔔 Sounds on"}
+            <span className="text-slate-300 dark:text-slate-600">· click to toggle</span>
+          </button>
+          {/* Keyboard shortcut hint */}
+          <button
+            onClick={() => setShowHelp(true)}
+            className="mt-2 flex items-center gap-1.5 text-xs text-slate-400 hover:text-brand-600 transition-colors"
+          >
+            <kbd className="inline-flex items-center justify-center w-5 h-5 rounded bg-slate-200 dark:bg-slate-700 text-[10px] font-mono font-bold">?</kbd>
+            Keyboard shortcuts
+          </button>
         </div>
       </aside>
       <main className="flex-1 min-w-0 px-4 lg:px-8 py-6 pb-24 lg:pb-8">
@@ -151,5 +209,8 @@ export default function AppShell(){
         <n.icon className="w-5 h-5" /><span className="text-[11px] font-medium">{n.label}</span>
       </NavLink>)}
     </nav>
+
+    {/* Floating Action Button — always visible */}
+    <FAB />
   </div>
 }

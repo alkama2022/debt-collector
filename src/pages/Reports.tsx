@@ -9,6 +9,7 @@ import { useToast } from "../components/ui/toast"
 import { apiFetch } from "../services/api"
 import { formatCurrency } from "../utils/format"
 import { Download, TrendingUp, TrendingDown, Users, FileText, MessageSquare, AlertCircle, RefreshCw } from "lucide-react"
+import { EmptyReports } from "../components/ui/empty"
 
 type KPIs = {
   total_outstanding: number

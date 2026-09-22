@@ -114,6 +114,8 @@ export default function Onboarding() {
 
       track("onboarding_completed", { org_id: org.id, business_type: form.type })
       localStorage.setItem("cn_onboarded", "1")
+      // Clear the demo-seeded flag so DemoSeeder runs on next dashboard visit
+      localStorage.removeItem(`cn_demo_seeded_${org.id}`)
 
       // Update stored user with real org info
       const stored = localStorage.getItem("cn_user")

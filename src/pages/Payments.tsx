@@ -11,6 +11,7 @@ import { Skeleton } from "../components/ui/skeleton"
 import { CreditCard } from "lucide-react"
 import { downloadReceiptPdf, triggerBlobDownload } from "../services/live"
 import { ConfettiBurst } from "../components/ui/confetti"
+import { EmptyPayments } from "../components/ui/empty"
 
 export default function Payments() {
   const { payments, invoices, loading, addPayment } = useStore()
@@ -125,13 +126,21 @@ export default function Payments() {
                   <td className="text-xs">{formatDate(p.date)}</td>
                 </tr>
               ))}
-              {list.length === 0 && (
+              {list.length === 0 && payments.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                    No payments yet — record one to see it appear here.
+                  <td colSpan={7} className="p-0">
+                    <div className="p-6">
+                      <EmptyPayments onRecord={() => setOpen(true)} />
+                    </div>
                   </td>
                 </tr>
-              )}
+              ) : list.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                    No payments match this search.
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>

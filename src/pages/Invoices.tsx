@@ -7,7 +7,7 @@ import { Button } from "../components/ui/button"
 import { Modal } from "../components/ui/modal"
 import { Input, Select, Textarea } from "../components/ui/input"
 import { StatusBadge } from "../components/ui/badge"
-import { EmptyState } from "../components/ui/empty"
+import { EmptyInvoices as EmptyInvoicesState } from "../components/ui/empty"
 import { useToast } from "../components/ui/toast"
 import { Skeleton } from "../components/ui/skeleton"
 import { FileText, Plus } from "lucide-react"
@@ -90,13 +90,10 @@ export default function Invoices() {
         </select>
       </Card>
 
-      {filtered.length === 0 ? (
-        <EmptyState
-          title="No invoices yet"
-          desc="Create your first invoice to start tracking balances."
-          icon={<FileText className="w-6 h-6" />}
-          action={{ label: "Create Invoice", onClick: () => setOpen(true) }}
-        />
+      {filtered.length === 0 && invoices.length === 0 ? (
+        <EmptyInvoicesState onAdd={() => setOpen(true)} />
+      ) : filtered.length === 0 ? (
+        <div className="text-center p-8 text-sm text-slate-500">No invoices match this filter.</div>
       ) : (
         <>
           {/* Mobile cards */}

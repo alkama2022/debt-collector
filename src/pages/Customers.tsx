@@ -10,7 +10,9 @@ import { EmptyState } from "../components/ui/empty"
 import { Modal } from "../components/ui/modal"
 import { useToast } from "../components/ui/toast"
 import { Skeleton } from "../components/ui/skeleton"
-import { Search, Plus, Users, Languages, History, Upload, FileDown, ClipboardPaste } from "lucide-react"
+import { Search, Plus, Users, Languages, History, Upload } from "lucide-react"
+import { CsvImporter } from "../components/ui/csv-importer"
+import { EmptyCustomers } from "../components/ui/empty"
 import { ACTIVE_LANGUAGES } from "../i18n/registry"
 import { translate } from "../i18n/translations"
 import { liveGetCustomerLanguage } from "../services/live"
@@ -31,12 +33,7 @@ export default function Customers() {
   const [saving, setSaving] = useState(false)
   const [historyCustomer, setHistoryCustomer] = useState<string | null>(null)
   const [history, setHistory] = useState<{ code: string; changed_at: string; changed_by?: string }[] | null>(null)
-  // Bulk import
   const [bulkOpen, setBulkOpen] = useState(false)
-  const [bulkTab, setBulkTab] = useState<"csv" | "paste">("csv")
-  const [pasteText, setPasteText] = useState("")
-  const [parsedRows, setParsedRows] = useState<{ name: string; phone: string; email: string; preferred_language: string }[]>([])
-  const [bulkSaving, setBulkSaving] = useState(false)
 
   const list = useMemo(() => customers.filter(c => {
     const m = q
@@ -79,74 +76,7 @@ export default function Customers() {
     }
   }
 
-  // Bulk helpers
-  const parseCsvText = (text: string) => {
-    const lines = text.split(/\r?\n/).filter(l => l.trim())
-    if (!lines.length) return []
-    const header = lines[0].toLowerCase()
-    const hasHeader = header.includes("name") && (header.includes("phone") || header.includes("email"))
-    const dataLines = hasHeader ? lines.slice(1) : lines
-    return dataLines.map(line => {
-      // support comma or tab
-      const sep = line.includes("\t") ? "\t" : ","
-      const parts = line.split(sep).map(s => s.trim().replace(/^"|"$/g, ""))
-      return {
-        name: parts[0] || "",
-        phone: parts[1] || "",
-        email: parts[2] || "",
-        preferred_language: (parts[3] || "en").toLowerCase().slice(0, 3),
-      }
-    }).filter(r => r.name)
-  }
-
-  const handleCsvFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const text = await file.text()
-    const rows = parseCsvText(text)
-    setParsedRows(rows)
-    if (!rows.length) push("No valid rows found — need Name,Phone columns", "error")
-    else push(`${rows.length} rows parsed — review below then Import`, "success")
-  }
-
-  const handlePasteParse = () => {
-    const rows = parseCsvText(pasteText)
-    setParsedRows(rows)
-    if (!rows.length) push("Paste: Name<tab>Phone<tab>Email — one per line", "error")
-    else push(`${rows.length} rows parsed`, "success")
-  }
-
-  const handleBulkImport = async () => {
-    if (!parsedRows.length) { push("Parse CSV or paste first", "error"); return }
-    setBulkSaving(true)
-    try {
-      const res = await bulkAddCustomers(parsedRows)
-      push(`Imported ${res.created} customers${res.failed ? `, ${res.failed} failed` : ""}`, res.failed ? "info" : "success")
-      if (res.errors?.length) console.warn("Bulk errors", res.errors)
-      setBulkOpen(false)
-      setParsedRows([])
-      setPasteText("")
-    } catch (e: any) {
-      push(e?.data?.message || "Bulk import failed — check backend", "error")
-    } finally {
-      setBulkSaving(false)
-    }
-  }
-
-  const downloadSampleCsv = () => {
-    const csv = `name,phone,email,preferred_language
-Musa Ibrahim,08031234567,musa@example.com,ha
-Fatima Ali,08039876543,fatima@example.com,en
-Chinedu Okafor,08051234567,chinedu@example.com,ig
-Adeyemi Tunde,08061234567,ade@example.com,yo
-Hadiza Bello,08071234567,,ha`
-    const blob = new Blob([csv], { type: "text/csv" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url; a.download = "collectnaija_customers_sample.csv"; a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
-    push("Sample CSV downloaded — edit and re-upload", "success")
-  }
+  // Legacy helpers removed — CsvImporter handles all parsing internally
 
   if (loading) return (
     <div className="space-y-3">
@@ -190,11 +120,9 @@ Hadiza Bello,08071234567,,ha`
       </Card>
 
       {list.length === 0 ? (
-        <EmptyState
-          title="No customers yet"
-          desc="Add your first customer to start tracking payments."
-          icon={<Users className="w-6 h-6" />}
-          action={{ label: "Add Customer", onClick: () => setOpen(true) }}
+        <EmptyCustomers
+          onAdd={() => setOpen(true)}
+          onImport={() => setBulkOpen(true)}
         />
       ) : (
         <>
@@ -309,58 +237,19 @@ Hadiza Bello,08071234567,,ha`
         </div>
       </Modal>
 
-      {/* Bulk Import Modal — S2 love: notebook -> 60s */}
-      <Modal open={bulkOpen} onClose={() => setBulkOpen(false)} title="Import customers — CSV / Excel paste">
-        <div className="space-y-4">
-          <div className="flex gap-2">
-            <button onClick={() => setBulkTab("csv")} className={`flex-1 py-2.5 rounded-xl border text-sm font-medium flex items-center justify-center gap-2 ${bulkTab === "csv" ? "bg-slate-900 text-white border-slate-900" : "bg-white dark:bg-slate-800"}`}><FileDown className="w-4 h-4" /> Upload CSV</button>
-            <button onClick={() => setBulkTab("paste")} className={`flex-1 py-2.5 rounded-xl border text-sm font-medium flex items-center justify-center gap-2 ${bulkTab === "paste" ? "bg-slate-900 text-white border-slate-900" : "bg-white dark:bg-slate-800"}`}><ClipboardPaste className="w-4 h-4" /> Paste from Excel</button>
-          </div>
-
-          {bulkTab === "csv" ? (
-            <div className="space-y-3">
-              <div className="p-4 rounded-2xl border-2 border-dashed bg-slate-50 dark:bg-slate-700/50 text-center">
-                <Upload className="w-6 h-6 mx-auto text-slate-400" />
-                <p className="text-sm font-medium mt-2">Drop CSV or click to browse</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Columns: <code>name,phone,email,preferred_language</code> — phone/email optional</p>
-                <input type="file" accept=".csv,.txt" onChange={handleCsvFile} className="mt-3 block w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-brand-600 file:text-white file:text-sm" />
-              </div>
-              <Button variant="secondary" onClick={downloadSampleCsv} className="w-full gap-2"><FileDown className="w-4 h-4" /> Download sample CSV</Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-xs text-slate-500 dark:text-slate-400">Copy from Excel/Sheets: <code>Name[TAB]Phone[TAB]Email</code> per line. Example: <code>Musa Ibrahim[TAB]08031234567</code></p>
-              <textarea value={pasteText} onChange={e => setPasteText(e.target.value)} placeholder={"Musa Ibrahim\t08031234567\tmusa@example.com\nha\nFatima Ali\t08039876543\nChinedu Okafor\t08051234567\tchinedu@example.com\tig"} rows={6} className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500" />
-              <Button variant="secondary" onClick={handlePasteParse} className="w-full">Parse pasted rows</Button>
-            </div>
-          )}
-
-          {parsedRows.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold">Preview — {parsedRows.length} rows</h4>
-                <span className="text-xs text-slate-500 dark:text-slate-400">First 8 shown • bulk limit 500</span>
-              </div>
-              <div className="max-h-[220px] overflow-auto border rounded-xl">
-                <table className="w-full text-xs">
-                  <thead className="bg-slate-50 dark:bg-slate-700/50 sticky top-0"><tr><th className="text-left p-2">#</th><th className="text-left">Name</th><th className="text-left">Phone</th><th className="text-left">Lang</th></tr></thead>
-                  <tbody>
-                    {parsedRows.slice(0, 8).map((r, i) => (
-                      <tr key={i} className="border-t"><td className="p-2 text-slate-500 dark:text-slate-400">{i + 1}</td><td className="p-2 font-medium">{r.name}</td><td className="p-2 font-mono">{r.phone || "—"}</td><td className="p-2"><LanguageBadge code={r.preferred_language || "en"} /></td></tr>
-                    ))}
-                  </tbody>
-                </table>
-                {parsedRows.length > 8 && <div className="text-xs text-center p-2 text-slate-500 dark:text-slate-400">+ {parsedRows.length - 8} more rows</div>}
-              </div>
-              <div className="flex justify-end gap-2 pt-1">
-                <Button variant="secondary" onClick={() => setParsedRows([])} disabled={bulkSaving}>Clear</Button>
-                <Button onClick={handleBulkImport} disabled={bulkSaving}>{bulkSaving ? "Importing…" : `Import ${parsedRows.length} customers`}</Button>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Creates via <code>POST /api/v1/customers/bulk</code> • idempotent customer_code • org-isolated</p>
-            </div>
-          )}
-        </div>
-      </Modal>
+      {/* CSV Importer with column mapping */}
+      <CsvImporter
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        onImport={async (rows) => {
+          const res = await bulkAddCustomers(rows)
+          push(
+            `Imported ${res.created} customers${res.failed ? ` · ${res.failed} skipped` : ""}`,
+            res.failed ? "info" : "success"
+          )
+          return res
+        }}
+      />
     </div>
   )
 }

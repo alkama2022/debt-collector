@@ -10,6 +10,7 @@ import { useToast } from "../components/ui/toast"
 import { Skeleton } from "../components/ui/skeleton"
 import { listReminderRules, createReminderRule, updateReminderRule, deleteReminderRule, runReminderRule, type RawRule } from "../services/live"
 import { Zap, Plus, Power, Trash2, Play, History, Settings2 } from "lucide-react"
+import { EmptyReminders } from "../components/ui/empty"
 
 export default function Reminders() {
   const { reminders, invoices, loading, addReminder, refresh } = useStore()
@@ -266,13 +267,21 @@ export default function Reminders() {
                       <td className="text-xs">{r.sentAt ? formatDate(r.sentAt) : "—"}</td>
                     </tr>
                   ))}
-                  {list.length === 0 && (
+                  {list.length === 0 && reminders.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                        No reminders yet — create one or run an automation rule.
+                      <td colSpan={7} className="p-0 border-0">
+                        <div className="p-6">
+                          <EmptyReminders onCreate={() => { setTopTab("automation"); setRuleOpen(true) }} />
+                        </div>
                       </td>
                     </tr>
-                  )}
+                  ) : list.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                        No reminders match this filter.
+                      </td>
+                    </tr>
+                  ) : null}
                 </tbody>
               </table>
             </div>
