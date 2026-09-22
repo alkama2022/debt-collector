@@ -1,34 +1,36 @@
+import { lazy, Suspense } from "react"
 import { Routes, Route, Navigate } from "react-router-dom"
-import Landing from "./pages/Landing"
-import Login from "./pages/Login"
-import Signup from "./pages/Signup"
-import Onboarding from "./pages/Onboarding"
-import Dashboard from "./pages/Dashboard"
-import Customers from "./pages/Customers"
-import CustomerDetail from "./pages/CustomerDetail"
-import Invoices from "./pages/Invoices"
-import InvoiceDetail from "./pages/InvoiceDetail"
-import Payments from "./pages/Payments"
-import Reminders from "./pages/Reminders"
-import Reports from "./pages/Reports"
-import Settings from "./pages/Settings"
-import Languages from "./pages/Languages"
-import PayInvoice from "./pages/PayInvoice"
-import Pricing from "./pages/Pricing"
-import Billing from "./pages/Billing"
-import Usage from "./pages/Usage"
-import BillingInvoices from "./pages/BillingInvoices"
-import AdminBilling from "./pages/AdminBilling"
-import AppShell from "./layouts/AppShell"
 import { useAuth } from "./hooks/useAuth"
+import AppShell from "./layouts/AppShell"
+const Landing = lazy(()=> import("./pages/Landing"))
+const Login = lazy(()=> import("./pages/Login"))
+const Signup = lazy(()=> import("./pages/Signup"))
+const Onboarding = lazy(()=> import("./pages/Onboarding"))
+const Dashboard = lazy(()=> import("./pages/Dashboard"))
+const Customers = lazy(()=> import("./pages/Customers"))
+const CustomerDetail = lazy(()=> import("./pages/CustomerDetail"))
+const Invoices = lazy(()=> import("./pages/Invoices"))
+const InvoiceDetail = lazy(()=> import("./pages/InvoiceDetail"))
+const Payments = lazy(()=> import("./pages/Payments"))
+const Reminders = lazy(()=> import("./pages/Reminders"))
+const Reports = lazy(()=> import("./pages/Reports"))
+const Settings = lazy(()=> import("./pages/Settings"))
+const Languages = lazy(()=> import("./pages/Languages"))
+const PayInvoice = lazy(()=> import("./pages/PayInvoice"))
+const Pricing = lazy(()=> import("./pages/Pricing"))
+const Billing = lazy(()=> import("./pages/Billing"))
+const Usage = lazy(()=> import("./pages/Usage"))
+const BillingInvoices = lazy(()=> import("./pages/BillingInvoices"))
+const AdminBilling = lazy(()=> import("./pages/AdminBilling"))
 
 function Protected({children}:{children:React.ReactNode}){
   const {user}=useAuth()
   if(!user) return <Navigate to="/login" replace />
   return <>{children}</>
 }
+function Fallback(){ return <div className="min-h-[50vh] grid place-items-center p-8"><div className="flex items-center gap-3 text-sm text-slate-500"><span className="w-5 h-5 rounded-full border-2 border-slate-300 border-t-brand-600 animate-spin"/> Loading…</div></div> }
 export default function App(){
-  return <Routes>
+  return <Suspense fallback={<Fallback/>}><Routes>
     <Route path="/" element={<Landing/>} />
     <Route path="/login" element={<Login/>} />
     <Route path="/signup" element={<Signup/>} />
@@ -53,5 +55,5 @@ export default function App(){
       <Route path="/admin/billing" element={<AdminBilling/>} />
     </Route>
     <Route path="*" element={<Navigate to="/" replace />} />
-  </Routes>
+  </Routes></Suspense>
 }

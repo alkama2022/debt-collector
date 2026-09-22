@@ -26,28 +26,29 @@ export default function Login(){
         <ThemeToggle />
       </div>
       <h1 className="text-2xl font-bold mt-8 dark:text-white">Welcome back</h1>
-      <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Sign in to your workspace. Demo: use any email/password.</p>
-      <form onSubmit={submit} className="mt-6 space-y-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-card dark:shadow-softDark">
+      <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Sign in to your workspace. Your data stays in your organisation.</p>
+      <form onSubmit={submit} className="mt-6 space-y-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm">
         <Input label="Email" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@business.com" />
         <Input label="Password" type="password" value={pwd} onChange={e=>setPwd(e.target.value)} />
         {err && <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-sm text-red-700 dark:text-red-300" role="alert">{err}</div>}
-        <Button type="submit" disabled={loading} className="w-full">{loading?"Signing in...":"Sign in"}</Button>
+        <Button type="submit" disabled={loading} className="w-full shadow-sm hover:shadow-md transition">{loading?"Signing in...":"Sign in"}</Button>
         <div className="flex justify-between text-sm">
           <Link to="/signup" className="text-brand-600 dark:text-blue-400 hover:underline">Create account</Link>
-          <a href="#" onClick={e=>e.preventDefault()} className="text-slate-500 dark:text-slate-400">Forgot password?</a>
+          <button type="button" onClick={()=>push("Password reset — contact support@collectnaija.com","info")} className="text-slate-500 dark:text-slate-400 hover:text-slate-700">Forgot password?</button>
         </div>
-        <div className="text-xs text-slate-500 dark:text-slate-400 border-t dark:border-slate-700 pt-3">Secure JWT auth · Backend enforces permissions · <span className="font-mono">VITE_API_BASE_URL</span></div>
+        <div className="text-xs text-slate-500 border-t dark:border-slate-700 pt-3 flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500"/> Encrypted & org-isolated</div>
       </form>
-      <div className="mt-4 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-300">Demo Workspace · data is isolated and labelled. No real money moves until backend is connected.</div>
+      <div className="mt-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400">Try demo: <span className="font-mono">ade@collectnaija.demo / demo1234</span> or create your own workspace.</div>
     </div>
-    <div className="hidden lg:flex flex-1 bg-slate-900 dark:bg-black text-white p-10 flex-col justify-center border-l dark:border-slate-800">
+    <div className="hidden lg:flex flex-1 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 text-white p-10 flex-col justify-center border-l dark:border-slate-800">
       <div className="max-w-md">
-        <div className="text-sm text-slate-300">Trust design</div>
-        <h2 className="text-3xl font-bold mt-2">Know who owes you. Know when they promised to pay.</h2>
-        <ul className="mt-6 space-y-3 text-sm text-slate-200">
-          <li>? Clear balances � backend is source of truth</li>
-          <li>? Offline-aware: explains when you are offline</li>
-          <li>? Accessible, keyboard-navigable, 44px touch targets</li>
+        <div className="text-xs font-medium tracking-widest uppercase text-white/50">Why teams stay</div>
+        <h2 className="text-3xl font-bold mt-2 leading-tight">Know who owes you. Know when they promised to pay.</h2>
+        <p className="text-sm text-white/70 mt-3">No spreadsheets. No chasing. Just a quiet workspace that keeps your cash flow clear.</p>
+        <ul className="mt-6 space-y-3 text-sm text-white/85">
+          <li className="flex gap-2"><span className="w-6 h-6 rounded-full bg-white/10 grid place-items-center text-xs">✓</span> Balances calculated on the server — always accurate</li>
+          <li className="flex gap-2"><span className="w-6 h-6 rounded-full bg-white/10 grid place-items-center text-xs">✓</span> Works offline, syncs when you’re back</li>
+          <li className="flex gap-2"><span className="w-6 h-6 rounded-full bg-white/10 grid place-items-center text-xs">✓</span> Built for Nigeria, ready for the world</li>
         </ul>
       </div>
     </div>

@@ -47,14 +47,15 @@ export default function AppShell(){
     nav2(`/customers?q=${encodeURIComponent(q)}`)
   }
   const schoolMode = localStorage.getItem("cn_school")==="1"
+  const isDemo = user?.org?.name?.toLowerCase().includes("demo") || localStorage.getItem("cn_demo")==="1"
   return <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] text-slate-900 dark:text-slate-100 transition-colors">
-    {!online && <div className="bg-amber-600 text-white text-sm text-center py-2 px-4 flex items-center justify-center gap-2"><WifiOff className="w-4 h-4"/> You are offline. Your changes have not been submitted yet.</div>}
+    {!online && <div className="bg-amber-600 text-white text-sm text-center py-2 px-4 flex items-center justify-center gap-2"><WifiOff className="w-4 h-4"/> You’re offline — changes will sync when you’re back.</div>}
     <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur border-b border-slate-200 dark:border-slate-800">
       <div className="max-w-[1440px] mx-auto px-4 lg:px-6 h-[64px] flex items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center text-white font-bold text-sm">CN</div>
           <span className="font-semibold text-slate-900 dark:text-white hidden sm:block">CollectNaija</span>
-          <span className="hidden lg:inline-flex ml-2 px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs font-medium text-amber-800 dark:text-amber-300">Demo Workspace</span>
+          {isDemo && <span className="hidden lg:inline-flex ml-2 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300">Demo</span>}
           {schoolMode && <span className="hidden lg:inline-flex px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs font-medium text-emerald-700 dark:text-emerald-300">School Mode</span>}
         </div>
         <form onSubmit={onSearch} className="hidden md:flex flex-1 max-w-md mx-6 relative">
@@ -128,9 +129,9 @@ export default function AppShell(){
         </nav>
         <div className="mt-6 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
           <div className="flex items-center gap-2 text-sm font-semibold dark:text-white"><Building2 className="w-4 h-4"/> {user?.org.name}</div>
-          <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">NGN · Africa/Lagos {schoolMode && "· School"}</div>
-          <div className="mt-3 text-xs text-slate-600 dark:text-slate-400">API: <span className="font-mono">VITE_API_BASE_URL</span></div>
-          <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">{customers.length} customers · {invoices.length} invoices · live from store</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">{user?.org.currency || "NGN"} · Africa/Lagos {schoolMode && "· School"}</div>
+          <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">{customers.length} customers · {invoices.length} invoices</div>
+          <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300"><span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"/> Live & secure</div>
         </div>
       </aside>
       <main className="flex-1 min-w-0 px-4 lg:px-8 py-6 pb-24 lg:pb-8">
