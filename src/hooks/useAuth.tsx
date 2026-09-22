@@ -18,20 +18,36 @@ type RawOrg = { id: string; slug: string; name: string; country: string; currenc
 type RawUser = { id: string; email: string; name: string }
 type Paginated<T> = { count: number; results: T[] }
 
-/** After login/signup we have tokens — fetch the user's first org to build AppUser */
-async function buildAppUser(rawUser: RawUser): Promise<AppUser> {
+/** After login/signup: fetch real user + org data from the API */
+async function buildAppUser(accessToken: string): Promise<AppUser> {
+  // Always set the token first so subsequent requests are authenticated
+  localStorage.setItem("cn_token", accessToken)
+
+  // Step 1: Get real user data from /auth/me
+  let rawUser: RawUser = { id: "", email: "", name: "" }
+  try {
+    const meRes = await apiFetch<{ success: boolean; data: RawUser }>("/auth/me")
+    rawUser = meRes.data
+  } catch {
+    // Fallback: decode from JWT (only has user_id, no email)
+    try {
+      const payload = JSON.parse(atob(accessToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")))
+      rawUser = { id: payload.user_id || payload.id || "", email: payload.email || "", name: payload.name || "" }
+    } catch {}
+  }
+
+  // Step 2: Get user's organization
   try {
     const orgs = await apiFetch<Paginated<RawOrg>>("/organizations")
-    const org = orgs.results[0]
+    const org = orgs.results?.[0]
     if (org) {
-      // Persist org id so every subsequent request sends X-Org-Id
       localStorage.setItem("cn_org_id", org.id)
     }
     return {
       id: rawUser.id,
       name: rawUser.name || rawUser.email.split("@")[0],
       email: rawUser.email,
-      role: "owner", // server enforces; default to owner for UI
+      role: "owner",
       org: org
         ? {
             id: org.id,
@@ -49,7 +65,7 @@ async function buildAppUser(rawUser: RawUser): Promise<AppUser> {
           },
     }
   } catch {
-    // No org yet (fresh signup before onboarding) — return minimal user
+    // No org yet — fresh signup before onboarding
     return {
       id: rawUser.id,
       name: rawUser.name || rawUser.email.split("@")[0],
@@ -82,22 +98,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     setLoading(true)
     try {
-      // SimpleJWT endpoint: POST /api/v1/auth/login
       const tokens = await apiFetch<{ access: string; refresh: string }>(
         "/auth/login",
         { method: "POST", body: JSON.stringify({ email, password }), auth: false }
       )
-      localStorage.setItem("cn_token", tokens.access)
       localStorage.setItem("cn_refresh", tokens.refresh)
-
-      // Decode email/id from JWT payload (base64 middle segment)
-      let rawUser: RawUser = { id: "", email, name: "" }
-      try {
-        const payload = JSON.parse(atob(tokens.access.split(".")[1]))
-        rawUser = { id: payload.user_id || payload.id || "", email: payload.email || email, name: payload.name || "" }
-      } catch {}
-
-      const appUser = await buildAppUser(rawUser)
+      // buildAppUser sets cn_token then calls /auth/me + /organizations
+      const appUser = await buildAppUser(tokens.access)
       setUser(appUser)
       track("login_completed")
     } finally {
@@ -108,7 +115,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signup = async (data: { name: string; email: string; password: string }) => {
     setLoading(true)
     try {
-      // Custom signup endpoint: POST /api/v1/auth/signup
       const res = await apiFetch<{
         success: boolean
         data: { user: RawUser; access: string; refresh: string }
@@ -117,10 +123,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ name: data.name, email: data.email, password: data.password }),
         auth: false,
       })
-      localStorage.setItem("cn_token", res.data.access)
       localStorage.setItem("cn_refresh", res.data.refresh)
-
-      const appUser = await buildAppUser(res.data.user)
+      // buildAppUser sets cn_token then calls /auth/me + /organizations
+      const appUser = await buildAppUser(res.data.access)
       setUser(appUser)
       track("signup_completed")
     } finally {

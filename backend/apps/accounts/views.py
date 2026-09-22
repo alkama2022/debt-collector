@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import SignupSerializer, UserSerializer
 
+
 class SignupView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
@@ -22,3 +23,14 @@ class SignupView(APIView):
             },
         }
         return Response(data, status=status.HTTP_201_CREATED)
+
+
+class MeView(APIView):
+    """GET /api/v1/auth/me — return current authenticated user's profile."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return Response({
+            "success": True,
+            "data": UserSerializer(request.user).data,
+        })
