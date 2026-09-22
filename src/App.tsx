@@ -15,6 +15,7 @@ const Payments = lazy(()=> import("./pages/Payments"))
 const Reminders = lazy(()=> import("./pages/Reminders"))
 const Reports = lazy(()=> import("./pages/Reports"))
 const Settings = lazy(()=> import("./pages/Settings"))
+const AI = lazy(()=> import("./pages/AI"))
 const Languages = lazy(()=> import("./pages/Languages"))
 const PayInvoice = lazy(()=> import("./pages/PayInvoice"))
 const Pricing = lazy(()=> import("./pages/Pricing"))
@@ -49,6 +50,7 @@ export default function App(){
       <Route path="/reports" element={<Reports/>} />
       <Route path="/languages" element={<Languages/>} />
       <Route path="/settings" element={<Settings/>} />
+      <Route path="/ai" element={<AI/>} />
       <Route path="/pricing" element={<Pricing/>} />
       <Route path="/billing" element={<Billing/>} />
       <Route path="/billing/usage" element={<Usage/>} />
