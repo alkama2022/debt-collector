@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "apps.webhooks",
     "apps.audit",
     "apps.subscriptions",
+    "apps.reports",
 ]
 
 MIDDLEWARE = [
@@ -173,9 +174,47 @@ PAYSTACK_SECRET_KEY = config("PAYSTACK_SECRET_KEY", default="")
 PAYSTACK_WEBHOOK_SECRET = config("PAYSTACK_WEBHOOK_SECRET", default="")
 FLUTTERWAVE_SECRET_KEY = config("FLUTTERWAVE_SECRET_KEY", default="")
 FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:5173")
-# Comms
-WHATSAPP_PROVIDER = config("WHATSAPP_PROVIDER", default="mock")  # mock, meta, termii
-TERMII_API_KEY = config("TERMII_API_KEY", default="")
-META_WHATSAPP_TOKEN = config("META_WHATSAPP_TOKEN", default="")
+# Comms — Provider selection
+WHATSAPP_PROVIDER = config("WHATSAPP_PROVIDER", default="mock")  # mock, africastalking, twilio
+VOICE_PROVIDER = config("VOICE_PROVIDER", default=WHATSAPP_PROVIDER)
+EMAIL_PROVIDER = config("EMAIL_PROVIDER", default="auto")  # auto, mock
 
+# Africa's Talking — Primary SMS/WhatsApp/Voice provider for Nigeria
+AFRICASTALKING_USERNAME = config("AFRICASTALKING_USERNAME", default="sandbox")
+AFRICASTALKING_API_KEY = config("AFRICASTALKING_API_KEY", default="")
+AFRICASTALKING_SENDER_ID = config("AFRICASTALKING_SENDER_ID", default="CollectNaija")
+AFRICASTALKING_WHATSAPP_SENDER = config("AFRICASTALKING_WHATSAPP_SENDER", default="")
+AFRICASTALKING_CALLER_ID = config("AFRICASTALKING_CALLER_ID", default="")
+
+# Email (SMTP)
+EMAIL_BACKEND = config(
+    "EMAIL_BACKEND",
+    default="django.core.mail.backends.console.EmailBackend" if DEBUG else "django.core.mail.backends.smtp.EmailBackend",
+)
+EMAIL_HOST = config("EMAIL_HOST", default="smtp.gmail.com")
+EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
+EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="CollectNaija <noreply@collectnaija.com>")
+
+# Celery Beat — Periodic task schedules
+from celery.schedules import crontab  # noqa: E402
+CELERY_BEAT_SCHEDULE = {
+    # Dispatch queued communication events — every 2 minutes
+    "dispatch-queued-events": {
+        "task": "apps.comms.tasks.dispatch_queued_events",
+        "schedule": 120.0,  # seconds
+    },
+    # Retry transiently-failed events — every hour
+    "retry-failed-events": {
+        "task": "apps.comms.tasks.retry_failed_events",
+        "schedule": crontab(minute=0),  # top of every hour
+    },
+    # Enqueue due reminders from ReminderRules — every 5 minutes
+    "enqueue-due-reminders": {
+        "task": "apps.collections.tasks.enqueue_due_reminders",
+        "schedule": 300.0,
+    },
+}
 
