@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: "class",
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
@@ -28,6 +29,7 @@ export default {
       boxShadow: {
         soft: "0 1px 3px rgba(15,23,42,0.08), 0 8px 24px rgba(15,23,42,0.06)",
         card: "0 1px 2px rgba(15,23,42,0.06), 0 4px 16px rgba(15,23,42,0.05)",
+        softDark: "0 1px 3px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.4)",
       },
     },
   },

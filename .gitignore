@@ -1,4 +1,6 @@
 .env
+.env.production
+.env.local
 dist
 node_modules
 tsconfig.tsbuildinfo

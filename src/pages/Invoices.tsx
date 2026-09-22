@@ -62,7 +62,7 @@ export default function Invoices() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">Invoices</h1>
-          <p className="text-sm text-slate-600">{invoices.length} invoices</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400">{invoices.length} invoices</p>
         </div>
         <Button onClick={() => setOpen(true)} className="gap-2">
           <Plus className="w-4 h-4" /> Create Invoice
@@ -74,12 +74,12 @@ export default function Invoices() {
           value={q}
           onChange={e => setQ(e.target.value)}
           placeholder="Search invoice or customer"
-          className="flex-1 h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className="flex-1 h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
         <select
           value={status}
           onChange={e => setStatus(e.target.value)}
-          className="h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm"
+          className="h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
         >
           <option value="all">All status</option>
           <option value="draft">Draft</option>
@@ -108,12 +108,12 @@ export default function Invoices() {
                   <StatusBadge status={inv.status} />
                 </div>
                 <div className="text-sm mt-1">{inv.customerName}</div>
-                <div className="text-xs text-slate-500">
+                <div className="text-xs text-slate-500 dark:text-slate-400">
                   Due {formatDate(inv.dueDate)} — {formatCurrency(inv.balance)} balance — {formatCurrency(inv.total)} total
                 </div>
                 <Link
                   to={`/invoices/${inv.id}`}
-                  className="mt-3 block text-center py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium min-h-[44px] flex items-center justify-center"
+                  className="mt-3 block text-center py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium min-h-[44px] flex items-center justify-center"
                 >
                   View
                 </Link>
@@ -125,7 +125,7 @@ export default function Invoices() {
           <Card className="hidden md:block overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-xs text-slate-500">
+                <thead className="bg-slate-50 dark:bg-slate-700/50 text-xs text-slate-500 dark:text-slate-400">
                   <tr>
                     <th className="text-left p-3">Invoice</th>
                     <th className="text-left">Customer</th>
@@ -139,7 +139,7 @@ export default function Invoices() {
                 </thead>
                 <tbody>
                   {filtered.map(inv => (
-                    <tr key={inv.id} className="border-t hover:bg-slate-50">
+                    <tr key={inv.id} className="border-t hover:bg-slate-50 dark:bg-slate-700/50">
                       <td className="p-3 font-mono font-medium">
                         <Link to={`/invoices/${inv.id}`} className="hover:underline">{inv.number}</Link>
                       </td>
@@ -150,7 +150,7 @@ export default function Invoices() {
                       <td className="text-right">{formatCurrency(inv.total)}</td>
                       <td className="text-right font-medium">{formatCurrency(inv.balance)}</td>
                       <td className="pr-3 text-right">
-                        <Link to={`/invoices/${inv.id}`} className="text-xs px-3 py-1.5 rounded-full border bg-white">View</Link>
+                        <Link to={`/invoices/${inv.id}`} className="text-xs px-3 py-1.5 rounded-full border bg-white dark:bg-slate-800">View</Link>
                       </td>
                     </tr>
                   ))}
@@ -172,7 +172,7 @@ export default function Invoices() {
           <Input label="Description" value={desc} onChange={e => setDesc(e.target.value)} placeholder="e.g. School fees Term 1" />
           <Input label="Amount (NGN)" value={amt} onChange={e => setAmt(e.target.value)} />
           <Input label="Due date" type="date" value={due} onChange={e => setDue(e.target.value)} />
-          <div className="p-3 rounded-xl bg-slate-50 border text-xs text-slate-600">
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-700/50 border text-xs text-slate-600 dark:text-slate-400">
             Preview total: {formatCurrency(Number(amt.replace(/[^0-9]/g, "")) || 0)}
           </div>
           <div className="flex justify-end gap-2">

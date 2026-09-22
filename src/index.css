@@ -8,3 +8,16 @@ html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 .scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
 .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+.dark .scrollbar-thin::-webkit-scrollbar-thumb { background: #334155; }
+
+html { transition: background-color 0.25s ease, color 0.25s ease; }
+body { @apply bg-[#f8fafc] text-slate-900 dark:bg-[#020617] dark:text-slate-100 antialiased; transition: background-color 0.3s ease, color 0.3s ease; }
+::selection { @apply bg-brand-600 text-white; }
+
+.dark { color-scheme: dark; }
+
+/* Beautiful subtle grid for dark mode */
+.dark body { background-image: radial-gradient(ellipse at top, rgba(15,76,129,0.12), transparent 55%); }
+
+/* Smooth card transitions */
+.dark * { border-color: rgba(51,65,85,0.7); }

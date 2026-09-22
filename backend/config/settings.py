@@ -70,23 +70,37 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "config.wsgi.application"
-
+# Production DB (Aiven) — set via DATABASE_URL env var; example:
+# postgres://avnadmin:<password>@pg-13185f2f-alkalineumarliman-4964.b.aivencloud.com:24903/defaultdb?sslmode=require
 # Database — SQLite default for dev, Postgres via DATABASE_URL for prod
-_DATABASE_URL = (config("DATABASE_URL", default="") or "").strip()
-# allow commented value in .env (starts with #)
-if _DATABASE_URL and not _DATABASE_URL.startswith("#"):
+_DATABASE_URL = (config("DATABASE_URL", default="") or "").strip().strip("'\"")
+# allow commented value in .env (starts with #) and placeholder with <redacted>
+if _DATABASE_URL and not _DATABASE_URL.startswith("#") and "<redacted>" not in _DATABASE_URL:
     import urllib.parse as urlparse
-    url = urlparse.urlparse(_DATABASE_URL)
+    # support both postgres:// and postgresql://
+    _url_str = _DATABASE_URL.replace("postgresql://", "postgres://")
+    url = urlparse.urlparse(_url_str)
+    qs = urlparse.parse_qs(url.query)
+    # Aiven requires SSL — honor sslmode from query string
+    _sslmode = qs.get("sslmode", [None])[0]
+    _options = {}
+    if _sslmode:
+        _options["sslmode"] = _sslmode
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": url.path[1:],
+            "NAME": url.path[1:] or "defaultdb",
             "USER": url.username,
             "PASSWORD": url.password,
             "HOST": url.hostname,
-            "PORT": url.port,
+            "PORT": url.port or 5432,
+            **({"OPTIONS": _options} if _options else {}),
         }
     }
+    # Optional: warn if sslmode missing for Aiven host
+    if url.hostname and "aivencloud.com" in url.hostname and "sslmode" not in _options:
+        import warnings
+        warnings.warn("DATABASE_URL for Aiven should include ?sslmode=require")
 else:
     DATABASES = {
         "default": {
@@ -163,3 +177,5 @@ FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:5173")
 WHATSAPP_PROVIDER = config("WHATSAPP_PROVIDER", default="mock")  # mock, meta, termii
 TERMII_API_KEY = config("TERMII_API_KEY", default="")
 META_WHATSAPP_TOKEN = config("META_WHATSAPP_TOKEN", default="")
+
+

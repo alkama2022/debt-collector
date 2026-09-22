@@ -72,7 +72,7 @@ export default function LanguageRouterPreview() {
         <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center text-white"><Languages className="w-5 h-5" /></div>
         <div>
           <h2 className="font-semibold">Language Router Preview</h2>
-          <p className="text-xs text-slate-500">Detector demo: input text → detected language + confidence → response language resolution</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Detector demo: input text → detected language + confidence → response language resolution</p>
         </div>
       </div>
 
@@ -101,18 +101,18 @@ export default function LanguageRouterPreview() {
               <div className="mt-3 space-y-3">
                 <div className="flex items-center gap-2">
                   <LanguageBadge code={detectRes.detected_language} />
-                  <span className="text-xs text-slate-500">{getLanguage(detectRes.detected_language)?.native_name}</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">{getLanguage(detectRes.detected_language)?.native_name}</span>
                   <Badge tone="info">{Math.round(detectRes.confidence * 100)}% confidence</Badge>
                 </div>
                 <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
                   <div className="h-full bg-violet-600" style={{ width: `${Math.round(detectRes.confidence * 100)}%` }} />
                 </div>
                 {detectRes.alternatives?.length ? (
-                  <div className="text-xs text-slate-500">Alternatives: {detectRes.alternatives.map(a => `${a.code} ${Math.round(a.confidence*100)}%`).join(" · ")}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">Alternatives: {detectRes.alternatives.map(a => `${a.code} ${Math.round(a.confidence*100)}%`).join(" · ")}</div>
                 ) : null}
-                {customerLang && <div className="text-xs p-2 rounded-xl bg-slate-50 border">Customer preferred: <LanguageBadge code={customerLang} /></div>}
+                {customerLang && <div className="text-xs p-2 rounded-xl bg-slate-50 dark:bg-slate-700/50 border">Customer preferred: <LanguageBadge code={customerLang} /></div>}
               </div>
-            ) : <div className="text-sm text-slate-500 mt-2">No detection yet.</div>}
+            ) : <div className="text-sm text-slate-500 dark:text-slate-400 mt-2">No detection yet.</div>}
           </Card>
 
           <Card className="p-5">
@@ -120,17 +120,17 @@ export default function LanguageRouterPreview() {
             {resolveRes ? (
               <div className="mt-3 space-y-3">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs text-slate-500">Respond in</span> <LanguageBadge code={resolveRes.response_language} />
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Respond in</span> <LanguageBadge code={resolveRes.response_language} />
                   <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
                   <Badge tone="neutral">{resolveRes.source.replace("_", " ")}</Badge>
                 </div>
-                {resolveRes.detected && <div className="text-xs text-slate-500">Detected: {resolveRes.detected} · {resolveRes.confidence ? Math.round(resolveRes.confidence*100)+"%" : ""}</div>}
+                {resolveRes.detected && <div className="text-xs text-slate-500 dark:text-slate-400">Detected: {resolveRes.detected} · {resolveRes.confidence ? Math.round(resolveRes.confidence*100)+"%" : ""}</div>}
                 <div className="p-3 rounded-xl bg-violet-50 border border-violet-200 text-sm leading-relaxed">
                   {previewTemplate(resolveRes.response_language)}
                 </div>
-                <div className="text-xs text-slate-500">Template: reminder.template.overdue with {"{{name}}, {{invoice}}, {{amount}}, {{due_date}}"}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Template: reminder.template.overdue with {"{{name}}, {{invoice}}, {{amount}}, {{due_date}}"}</div>
               </div>
-            ) : <div className="text-sm text-slate-500 mt-2">Click Detect & Resolve.</div>}
+            ) : <div className="text-sm text-slate-500 dark:text-slate-400 mt-2">Click Detect & Resolve.</div>}
           </Card>
         </div>
       )}
@@ -139,12 +139,12 @@ export default function LanguageRouterPreview() {
         <h3 className="font-semibold text-sm">Supported Languages</h3>
         <div className="mt-3 flex flex-wrap gap-2">
           {ACTIVE_LANGUAGES.map(l => (
-            <span key={l.code} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border bg-white text-xs font-medium">
-              {l.flag} {l.native_name} <span className="text-slate-500">({l.code})</span>
+            <span key={l.code} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border bg-white dark:bg-slate-800 text-xs font-medium">
+              {l.flag} {l.native_name} <span className="text-slate-500 dark:text-slate-400">({l.code})</span>
             </span>
           ))}
         </div>
-        <p className="text-xs text-slate-500 mt-3">Registry is scalable: add ff/kr/tiv with active:true to surface automatically. Detection routes to X-Org-Language / Accept-Language headers.</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">Registry is scalable: add ff/kr/tiv with active:true to surface automatically. Detection routes to X-Org-Language / Accept-Language headers.</p>
       </Card>
     </div>
   )

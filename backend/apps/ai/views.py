@@ -67,6 +67,16 @@ class DetectLanguageView(APIView):
         except Language.DoesNotExist:
             name = native = code
         escalate = conf < 0.6
+        # §23 Human Escalation — low confidence → create escalated conversation stub for audit
+        if escalate and request.data.get("customer_id"):
+            try:
+                from apps.ai.models import AIConversation
+                from apps.customers.models import Customer
+                org = getattr(request, "org", None) or getattr(request.user.memberships.first(), "org", None)
+                cust = Customer.objects.for_org(org).filter(pk=request.data.get("customer_id")).first()
+                AIConversation.objects.create(org=org, customer=cust, state=AIConversation.State.ESCALATED, channel=AIConversation.Channel.WHATSAPP)
+            except Exception:
+                pass
         return Response({
             "text": text[:500],
             "detected_language": code,
@@ -74,6 +84,8 @@ class DetectLanguageView(APIView):
             "native_name": native,
             "confidence": round(float(conf), 2),
             "should_ask_preference": escalate,
+            "should_escalate": escalate,
+            "escalation_reason": "low_confidence" if escalate else None,
             "suggested_prompt": "Which language would you prefer us to use when communicating with you?" if escalate else None
         })
 
@@ -125,6 +137,42 @@ class VoiceLanguageView(APIView):
         code = request.data.get("language") or "en"
         voice = router.select_voice(code)
         return Response({"language": code, "voice": voice, "pipeline": ["STT","Language Detection","Conversation Understanding","Business Rules","Response Generation","Language Verification","TTS"]})
+
+
+class LanguageMetricsView(APIView):
+    """GET /api/v1/ai/language-metrics — §24 Quality Monitoring per language."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.languages.models import Language, CustomerLanguageHistory
+        from apps.payments.models import Payment
+        from apps.comms.models import CommunicationEvent
+        from django.db.models import Count
+        org = getattr(request, "org", None)
+        active = Language.objects.filter(active=True).order_by("code")
+        results = []
+        for lang in active:
+            # customers with this preferred language
+            from apps.customers.models import Customer
+            cust_count = Customer.objects.for_org(org).filter(preferred_language=lang).count() if org else 0
+            # payments from customers with this language (via invoice->customer)
+            payment_qs = Payment.objects.for_org(org).filter(invoice__customer__preferred_language=lang, status="successful") if org else Payment.objects.none()
+            paid_count = payment_qs.count()
+            # comm events queued/sent for this language inferred via customer
+            comm_total = CommunicationEvent.objects.for_org(org).filter(customer__preferred_language=lang).count() if org else 0
+            comm_sent = CommunicationEvent.objects.for_org(org).filter(customer__preferred_language=lang, status="sent").count() if org else 0
+            # escalation = low confidence histories
+            esc = CustomerLanguageHistory.objects.filter(org=org, to_lang=lang, reason__in=["auto_detect","detected_switch"]).count() if org else 0
+            # response rate heuristic: sent / total where total>0
+            response_rate = round((comm_sent / comm_total * 100) if comm_total else 0, 1)
+            results.append({
+                "code": lang.code, "name": lang.name, "native_name": lang.native_name,
+                "active": lang.active, "quality_status": lang.quality_status,
+                "customers": cust_count, "successful_payments": paid_count,
+                "comm_total": comm_total, "comm_sent": comm_sent,
+                "response_rate": response_rate, "escalations": esc,
+            })
+        return Response({"metrics": results, "note": "Real values from DB — §24 dashboard should calculate actual response_rate, escalation_rate, voice accuracy from collected data."})
 
 
 class LanguageHistoryView(APIView):

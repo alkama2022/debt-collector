@@ -29,8 +29,8 @@ export default function CustomerDetail() {
   const c = customers.find(x => x.id === id)
   if (!c) return (
     <div className="space-y-3">
-      <Link to="/customers" className="text-sm text-slate-600 hover:underline">← Back to customers</Link>
-      <div className="text-sm text-slate-500 p-8 text-center">Customer not found.</div>
+      <Link to="/customers" className="text-sm text-slate-600 dark:text-slate-400 hover:underline">← Back to customers</Link>
+      <div className="text-sm text-slate-500 dark:text-slate-400 p-8 text-center">Customer not found.</div>
     </div>
   )
 
@@ -53,7 +53,7 @@ export default function CustomerDetail() {
 
   return (
     <div className="space-y-4">
-      <Link to="/customers" className="text-sm text-slate-600 hover:underline">← Back to customers</Link>
+      <Link to="/customers" className="text-sm text-slate-600 dark:text-slate-400 hover:underline">← Back to customers</Link>
 
       <Card className="p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -69,10 +69,10 @@ export default function CustomerDetail() {
                 </Badge>
                 <LanguageBadge code={c.preferredLanguage || "en"} />
               </h1>
-              <div className="text-sm text-slate-600 mt-1">
+              <div className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                 {c.phone} — {c.email || "no email"} — ID: {c.customerId}
               </div>
-              <div className="text-xs text-slate-500 mt-2 flex items-center gap-2">
+              <div className="text-xs text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
                 <Languages className="w-3 h-3" /> {translate("invoice.outstanding_balance", c.preferredLanguage || "en")}: {formatCurrency(c.outstanding)}
                 <button onClick={loadHist} className="inline-flex items-center gap-1 text-violet-600 hover:underline"><History className="w-3 h-3" /> Language history</button>
               </div>
@@ -92,12 +92,12 @@ export default function CustomerDetail() {
 
       <div className="grid md:grid-cols-2 gap-3">
         <Card className="p-4">
-          <div className="text-xs text-slate-500 uppercase">Outstanding</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 uppercase">Outstanding</div>
           <div className="text-lg font-bold mt-1">{formatCurrency(c.outstanding)}</div>
         </Card>
         <Card className="p-4">
-          <div className="text-xs text-slate-500 uppercase">Overdue</div>
-          <div className="text-lg font-bold mt-1 text-red-600">{formatCurrency(c.overdue)}</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 uppercase">Overdue</div>
+          <div className="text-lg font-bold mt-1 text-red-600 dark:text-red-400">{formatCurrency(c.overdue)}</div>
         </Card>
       </div>
 
@@ -112,11 +112,11 @@ export default function CustomerDetail() {
               <Link
                 key={inv.id}
                 to={`/invoices/${inv.id}`}
-                className="flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:bg-slate-50"
+                className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:bg-slate-700/50"
               >
                 <div>
                   <div className="font-mono text-sm font-medium">{inv.number}</div>
-                  <div className="text-xs text-slate-500">{formatDate(inv.issueDate)} — Due {formatDate(inv.dueDate)}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">{formatDate(inv.issueDate)} — Due {formatDate(inv.dueDate)}</div>
                 </div>
                 <div className="text-right">
                   <StatusBadge status={inv.status} />
@@ -124,7 +124,7 @@ export default function CustomerDetail() {
                 </div>
               </Link>
             )) : (
-              <div className="text-sm text-slate-500 p-4 border border-dashed rounded-xl text-center">
+              <div className="text-sm text-slate-500 dark:text-slate-400 p-4 border border-dashed rounded-xl text-center">
                 No invoices — create one for this customer.
               </div>
             )}
@@ -135,10 +135,10 @@ export default function CustomerDetail() {
           <h3 className="font-semibold">Payment history</h3>
           <div className="mt-3 space-y-2">
             {pays.length ? pays.map(p => (
-              <div key={p.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-200">
+              <div key={p.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700">
                 <div>
                   <div className="text-sm font-medium">{p.reference} — {p.method}</div>
-                  <div className="text-xs text-slate-500">{formatDate(p.date)}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">{formatDate(p.date)}</div>
                 </div>
                 <div className="text-right">
                   <StatusBadge status={p.status} />
@@ -146,7 +146,7 @@ export default function CustomerDetail() {
                 </div>
               </div>
             )) : (
-              <div className="text-sm text-slate-500 p-4 border border-dashed rounded-xl text-center">
+              <div className="text-sm text-slate-500 dark:text-slate-400 p-4 border border-dashed rounded-xl text-center">
                 No payments recorded yet.
               </div>
             )}

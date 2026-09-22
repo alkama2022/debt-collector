@@ -142,7 +142,7 @@ export default function Reminders() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">Reminders</h1>
-          <p className="text-sm text-slate-600">{reminders.length} reminders • {rules.length} automation rules • Daily 8am WAT</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400">{reminders.length} reminders • {rules.length} automation rules • Daily 8am WAT</p>
         </div>
         <div className="flex gap-2">
           {topTab === "automation" ? (
@@ -154,9 +154,9 @@ export default function Reminders() {
       </div>
 
       {/* Top tabs: Automation vs History */}
-      <div className="flex gap-2 p-1 rounded-2xl bg-slate-100 w-fit">
-        <button onClick={() => setTopTab("automation")} className={`px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 ${topTab === "automation" ? "bg-white shadow text-slate-900" : "text-slate-600"}`}><Settings2 className="w-4 h-4" /> Automation</button>
-        <button onClick={() => setTopTab("history")} className={`px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 ${topTab === "history" ? "bg-white shadow text-slate-900" : "text-slate-600"}`}><History className="w-4 h-4" /> History</button>
+      <div className="flex gap-2 p-1 rounded-2xl bg-slate-100 dark:bg-slate-700 w-fit">
+        <button onClick={() => setTopTab("automation")} className={`px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 ${topTab === "automation" ? "bg-white dark:bg-slate-800 shadow text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400"}`}><Settings2 className="w-4 h-4" /> Automation</button>
+        <button onClick={() => setTopTab("history")} className={`px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 ${topTab === "history" ? "bg-white dark:bg-slate-800 shadow text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400"}`}><History className="w-4 h-4" /> History</button>
       </div>
 
       {topTab === "automation" ? (
@@ -165,16 +165,16 @@ export default function Reminders() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h3 className="font-semibold flex items-center gap-2"><Zap className="w-4 h-4" /> Set once, collect while you sleep</h3>
-                <p className="text-sm text-white/80 mt-1">Rules run daily 8am Africa/Lagos on open invoices. Includes <code className="bg-white/20 px-1.5 py-0.5 rounded text-xs">{"{{payment_link}}"}</code> (Paystack) + customer preferred language (ha/yo/ig/en). One click queues for all matching invoices.</p>
+                <p className="text-sm text-white/80 mt-1">Rules run daily 8am Africa/Lagos on open invoices. Includes <code className="bg-white dark:bg-slate-800/20 px-1.5 py-0.5 rounded text-xs">{"{{payment_link}}"}</code> (Paystack) + customer preferred language (ha/yo/ig/en). One click queues for all matching invoices.</p>
               </div>
-              <Button variant="secondary" onClick={() => runRule(undefined)} disabled={!!running} className="bg-white text-slate-900 hover:bg-slate-50 gap-2">
+              <Button variant="secondary" onClick={() => runRule(undefined)} disabled={!!running} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white hover:bg-slate-50 dark:bg-slate-700/50 gap-2">
                 <Play className="w-4 h-4" /> {running === "all" ? "Running…" : "Run all enabled now"}
               </Button>
             </div>
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
-              <span className="px-2.5 py-1 rounded-full bg-white/20">Before due: -3d WhatsApp (Hausa friendly)</span>
-              <span className="px-2.5 py-1 rounded-full bg-white/20">On due: SMS</span>
-              <span className="px-2.5 py-1 rounded-full bg-white/20">+3d / +7d after: WhatsApp + Voice</span>
+              <span className="px-2.5 py-1 rounded-full bg-white dark:bg-slate-800/20">Before due: -3d WhatsApp (Hausa friendly)</span>
+              <span className="px-2.5 py-1 rounded-full bg-white dark:bg-slate-800/20">On due: SMS</span>
+              <span className="px-2.5 py-1 rounded-full bg-white dark:bg-slate-800/20">+3d / +7d after: WhatsApp + Voice</span>
             </div>
           </Card>
 
@@ -182,7 +182,7 @@ export default function Reminders() {
             <Card className="p-8 text-center">
               <Zap className="w-8 h-8 mx-auto text-violet-600" />
               <h3 className="font-semibold mt-3">No automation yet</h3>
-              <p className="text-sm text-slate-600 mt-1">Create 3 rules and never chase manually again. Try presets below.</p>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Create 3 rules and never chase manually again. Try presets below.</p>
               <div className="mt-4 flex flex-wrap justify-center gap-2">
                 <Button variant="secondary" onClick={async () => {
                   const presets = [
@@ -202,22 +202,22 @@ export default function Reminders() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex-1 min-w-[240px]">
                       <div className="flex items-center gap-2">
-                        <span className={`w-2.5 h-2.5 rounded-full ${r.enabled ? "bg-emerald-500 animate-pulse" : "bg-slate-300"}`} />
+                        <span className={`w-2.5 h-2.5 rounded-full ${r.enabled ? "bg-emerald-50 dark:bg-emerald-950/300 animate-pulse" : "bg-slate-300"}`} />
                         <h4 className="font-semibold text-sm">{r.name}</h4>
-                        <span className={`text-xs px-2 py-0.5 rounded-full border ${r.enabled ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-white"}`}>{r.enabled ? "Enabled" : "Paused"}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full border ${r.enabled ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300" : "bg-white dark:bg-slate-800"}`}>{r.enabled ? "Enabled" : "Paused"}</span>
                       </div>
-                      <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-600">
-                        <span className="px-2 py-1 rounded-full bg-white border capitalize">{r.trigger.replace("_", " ")} • {r.offset_days}d • {r.channel}</span>
-                        <span className="px-2 py-1 rounded-full bg-white border">Lang: {r.language}</span>
-                        <span className="px-2 py-1 rounded-full bg-white border">ID: {r.id.slice(0, 8)}</span>
+                      <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-600 dark:text-slate-400">
+                        <span className="px-2 py-1 rounded-full bg-white dark:bg-slate-800 border capitalize">{r.trigger.replace("_", " ")} • {r.offset_days}d • {r.channel}</span>
+                        <span className="px-2 py-1 rounded-full bg-white dark:bg-slate-800 border">Lang: {r.language}</span>
+                        <span className="px-2 py-1 rounded-full bg-white dark:bg-slate-800 border">ID: {r.id.slice(0, 8)}</span>
                       </div>
-                      <div className="mt-2 p-2 rounded-xl bg-white border text-xs text-slate-700 font-mono line-clamp-2">{r.template}</div>
+                      <div className="mt-2 p-2 rounded-xl bg-white dark:bg-slate-800 border text-xs text-slate-700 dark:text-slate-300 font-mono line-clamp-2">{r.template}</div>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       <Button variant="secondary" onClick={() => toggleRule(r)} className="gap-1.5 text-xs h-8 px-2.5"><Power className="w-3.5 h-3.5" /> {r.enabled ? "Pause" : "Enable"}</Button>
                       <Button variant="secondary" onClick={() => { setEditingRule(r); setRuleForm({ name: r.name, trigger: r.trigger, offset_days: r.offset_days, channel: r.channel, template: r.template, language: r.language, enabled: r.enabled }); setRuleOpen(true) }} className="text-xs h-8 px-2.5">Edit</Button>
                       <Button onClick={() => runRule(r.id)} disabled={!!running} className="gap-1.5 text-xs h-8 px-2.5 bg-brand-600 hover:bg-brand-700"><Play className="w-3.5 h-3.5" /> {running === r.id ? "Queuing…" : "Run now"}</Button>
-                      <Button variant="ghost" onClick={() => removeRule(r.id)} className="h-8 w-8 p-0 text-red-600"><Trash2 className="w-4 h-4" /></Button>
+                      <Button variant="ghost" onClick={() => removeRule(r.id)} className="h-8 w-8 p-0 text-red-600 dark:text-red-400"><Trash2 className="w-4 h-4" /></Button>
                     </div>
                   </div>
                 </Card>
@@ -233,7 +233,7 @@ export default function Reminders() {
               <button
                 key={t}
                 onClick={() => setTab(t as any)}
-                className={`px-3 py-2 rounded-full text-xs font-medium border capitalize whitespace-nowrap ${tab === t ? "bg-slate-900 text-white border-slate-900" : "bg-white border-slate-200"}`}
+                className={`px-3 py-2 rounded-full text-xs font-medium border capitalize whitespace-nowrap ${tab === t ? "bg-slate-900 text-white border-slate-900" : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700"}`}
               >
                 {t} — {t === "all" ? reminders.length : reminders.filter(r => r.status === t).length}
               </button>
@@ -243,7 +243,7 @@ export default function Reminders() {
           <Card className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-xs text-slate-500">
+                <thead className="bg-slate-50 dark:bg-slate-700/50 text-xs text-slate-500 dark:text-slate-400">
                   <tr>
                     <th className="text-left p-3">Customer</th>
                     <th className="text-left">Invoice</th>
@@ -256,7 +256,7 @@ export default function Reminders() {
                 </thead>
                 <tbody>
                   {list.map(r => (
-                    <tr key={r.id} className="border-t hover:bg-slate-50">
+                    <tr key={r.id} className="border-t hover:bg-slate-50 dark:bg-slate-700/50">
                       <td className="p-3 font-medium">{r.customerName || "—"}</td>
                       <td className="font-mono text-xs">{r.invoiceNumber || "—"}</td>
                       <td className="text-right">{formatCurrency(r.amount)}</td>
@@ -268,7 +268,7 @@ export default function Reminders() {
                   ))}
                   {list.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="p-8 text-center text-sm text-slate-500">
+                      <td colSpan={7} className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">
                         No reminders yet — create one or run an automation rule.
                       </td>
                     </tr>
@@ -303,13 +303,13 @@ export default function Reminders() {
             ]}
           />
           <Textarea label="Message template" value={tpl} onChange={e => setTpl(e.target.value)} />
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-slate-500 dark:text-slate-400">
             Variables: {"{{customer_name}}"} {"{{business_name}}"} {"{{invoice_number}}"} {"{{amount_due}}"} {"{{due_date}}"} {"{{payment_link}}"}
           </div>
           {currentInv && (
-            <div className="p-3 rounded-xl bg-slate-50 border">
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-700/50 border">
               <div className="text-xs font-medium">Live preview (with pay link)</div>
-              <div className="text-sm mt-1 text-slate-700 break-words">{previewMessage}</div>
+              <div className="text-sm mt-1 text-slate-700 dark:text-slate-300 break-words">{previewMessage}</div>
             </div>
           )}
           <div className="flex justify-end gap-2">
@@ -332,7 +332,7 @@ export default function Reminders() {
             <Select label="Language" value={ruleForm.language} onChange={e => setRuleForm({ ...ruleForm, language: e.target.value })} options={[{ value: "auto", label: "auto (customer preferred)" }, { value: "en", label: "en" }, { value: "ha", label: "ha — Hausa" }, { value: "yo", label: "yo — Yoruba" }, { value: "ig", label: "ig — Igbo" }, { value: "pcm", label: "pcm — Pidgin" }]} />
           </div>
           <Textarea label="Template (use {{payment_link}})" value={ruleForm.template} onChange={e => setRuleForm({ ...ruleForm, template: e.target.value })} rows={4} />
-          <div className="text-xs text-slate-500">Vars: {"{{customer_name}}"} {"{{invoice_number}}"} {"{{amount_due}}"} {"{{due_date}}"} {"{{payment_link}}"} — pay link = /pay/:id</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400">Vars: {"{{customer_name}}"} {"{{invoice_number}}"} {"{{amount_due}}"} {"{{due_date}}"} {"{{payment_link}}"} — pay link = /pay/:id</div>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={ruleForm.enabled} onChange={e => setRuleForm({ ...ruleForm, enabled: e.target.checked })} /> Enabled (runs daily 8am)</label>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => { setRuleOpen(false); setEditingRule(null) }} disabled={saving}>Cancel</Button>

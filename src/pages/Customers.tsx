@@ -160,7 +160,7 @@ Hadiza Bello,08071234567,,ha`
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">Customers</h1>
-          <p className="text-sm text-slate-600">{customers.length} customers · Multilingual · Bulk import ready</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400">{customers.length} customers · Multilingual · Bulk import ready</p>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setBulkOpen(true)} className="gap-2">
@@ -179,12 +179,12 @@ Hadiza Bello,08071234567,,ha`
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="Search by name, ID, phone or language"
-            className="w-full h-11 pl-9 pr-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="w-full h-11 pl-9 pr-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
         </div>
         <div className="flex gap-1">
           {(["all", "overdue", "archived"] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)} className={`px-3 py-2 rounded-xl text-sm font-medium border capitalize ${filter === f ? "bg-slate-900 text-white border-slate-900" : "bg-white border-slate-200"}`}>{f}</button>
+            <button key={f} onClick={() => setFilter(f)} className={`px-3 py-2 rounded-xl text-sm font-medium border capitalize ${filter === f ? "bg-slate-900 text-white border-slate-900" : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700"}`}>{f}</button>
           ))}
         </div>
       </Card>
@@ -207,7 +207,7 @@ Hadiza Bello,08071234567,,ha`
                     <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-medium">{c.name[0]}</div>
                     <div>
                       <div className="font-semibold text-sm flex items-center gap-2">{c.name} <LanguageBadge code={c.preferredLanguage || "en"} /></div>
-                      <div className="text-xs text-slate-500">{c.customerId} — {c.phone}</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">{c.customerId} — {c.phone}</div>
                     </div>
                   </div>
                   <Badge tone={c.overdue ? "danger" : c.outstanding ? "warning" : "success"}>
@@ -217,20 +217,20 @@ Hadiza Bello,08071234567,,ha`
                 <div className="mt-2 flex items-center gap-2">
                   <button onClick={() => openHistory(c.id)} className="inline-flex items-center gap-1 text-xs text-violet-600 hover:underline"><History className="w-3 h-3" /> Language history</button>
                   <span className="text-xs text-slate-400">·</span>
-                  <span className="text-xs text-slate-500 flex items-center gap-1"><Languages className="w-3 h-3" /> {translate("invoice.outstanding_balance", c.preferredLanguage || "en")}: {formatCurrency(c.outstanding)}</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1"><Languages className="w-3 h-3" /> {translate("invoice.outstanding_balance", c.preferredLanguage || "en")}: {formatCurrency(c.outstanding)}</span>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2 text-center">
-                  <div className="p-2 rounded-xl bg-slate-50 border">
-                    <div className="text-xs text-slate-500">{translate("dashboard.outstanding_balance", c.preferredLanguage || "en")}</div>
+                  <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-700/50 border">
+                    <div className="text-xs text-slate-500 dark:text-slate-400">{translate("dashboard.outstanding_balance", c.preferredLanguage || "en")}</div>
                     <div className="text-sm font-semibold">{formatCurrency(c.outstanding)}</div>
                   </div>
-                  <div className="p-2 rounded-xl bg-red-50 border border-red-200">
+                  <div className="p-2 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900">
                     <div className="text-xs text-red-700">Overdue</div>
                     <div className="text-sm font-semibold text-red-700">{formatCurrency(c.overdue)}</div>
                   </div>
                 </div>
                 <div className="mt-3 flex gap-2">
-                  <Link to={`/customers/${c.id}`} className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white text-center text-sm font-medium min-h-[44px] flex items-center justify-center">View</Link>
+                  <Link to={`/customers/${c.id}`} className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-center text-sm font-medium min-h-[44px] flex items-center justify-center">View</Link>
                   <button onClick={() => {
                     const inv = invoices.find(i => i.customerId === c.id && i.balance > 0)
                     if (inv) { addReminder({ invoiceId: inv.id, channel: "whatsapp" }); push(`WhatsApp queued for ${c.name}`, "success") }
@@ -245,7 +245,7 @@ Hadiza Bello,08071234567,,ha`
           <Card className="hidden md:block overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-xs text-slate-500">
+                <thead className="bg-slate-50 dark:bg-slate-700/50 text-xs text-slate-500 dark:text-slate-400">
                   <tr>
                     <th className="text-left p-3">Customer</th>
                     <th className="text-left">Language</th>
@@ -257,21 +257,21 @@ Hadiza Bello,08071234567,,ha`
                 </thead>
                 <tbody>
                   {list.map(c => (
-                    <tr key={c.id} className="border-t border-slate-200 hover:bg-slate-50">
+                    <tr key={c.id} className="border-t border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:bg-slate-700/50">
                       <td className="p-3">
                         <Link to={`/customers/${c.id}`} className="font-medium hover:underline">{c.name}</Link>
-                        <div className="text-xs text-slate-500">{c.phone} — {c.email || "no email"}</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">{c.phone} — {c.email || "no email"}</div>
                       </td>
                       <td><LanguageBadge code={c.preferredLanguage || "en"} /></td>
                       <td className="font-mono text-xs">{c.customerId}</td>
                       <td className="text-right font-medium">{formatCurrency(c.outstanding)}</td>
                       <td className="text-right">
-                        <span className={c.overdue ? "text-red-600 font-medium" : "text-slate-500"}>{formatCurrency(c.overdue)}</span>
+                        <span className={c.overdue ? "text-red-600 dark:text-red-400 font-medium" : "text-slate-500 dark:text-slate-400"}>{formatCurrency(c.overdue)}</span>
                       </td>
                       <td className="text-right pr-3">
                         <div className="inline-flex items-center gap-1">
-                          <button onClick={() => openHistory(c.id)} className="px-2 py-1.5 rounded-full border bg-white text-xs font-medium inline-flex items-center gap-1"><History className="w-3 h-3" /> History</button>
-                          <Link to={`/customers/${c.id}`} className="px-3 py-1.5 rounded-full border bg-white text-xs font-medium">View</Link>
+                          <button onClick={() => openHistory(c.id)} className="px-2 py-1.5 rounded-full border bg-white dark:bg-slate-800 text-xs font-medium inline-flex items-center gap-1"><History className="w-3 h-3" /> History</button>
+                          <Link to={`/customers/${c.id}`} className="px-3 py-1.5 rounded-full border bg-white dark:bg-slate-800 text-xs font-medium">View</Link>
                         </div>
                       </td>
                     </tr>
@@ -289,7 +289,7 @@ Hadiza Bello,08071234567,,ha`
           <Input label="Phone" value={phone} onChange={e => setPhone(e.target.value)} placeholder="0803 ..." />
           <Input label="Email (optional)" value={email} onChange={e => setEmail(e.target.value)} placeholder="musa@example.com" />
           <Select label="Preferred Language" value={preferredLang} onChange={e => setPreferredLang(e.target.value)} options={langOptions} />
-          <p className="text-xs text-slate-500 flex items-center gap-1"><Languages className="w-3 h-3" /> Reminders will be sent in this language. You can change it per customer later.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1"><Languages className="w-3 h-3" /> Reminders will be sent in this language. You can change it per customer later.</p>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
             <Button onClick={add} disabled={saving}>{saving ? "Saving..." : "Save customer"}</Button>
@@ -299,13 +299,13 @@ Hadiza Bello,08071234567,,ha`
 
       <Modal open={!!historyCustomer} onClose={() => setHistoryCustomer(null)} title="Language history">
         <div className="space-y-2">
-          {!history ? <div className="text-sm text-slate-500">Loading…</div> : history.length === 0 ? <div className="text-sm text-slate-500">No history yet.</div> : history.map((h, i) => (
-            <div key={i} className="flex items-center justify-between p-3 rounded-xl border bg-white">
+          {!history ? <div className="text-sm text-slate-500 dark:text-slate-400">Loading…</div> : history.length === 0 ? <div className="text-sm text-slate-500 dark:text-slate-400">No history yet.</div> : history.map((h, i) => (
+            <div key={i} className="flex items-center justify-between p-3 rounded-xl border bg-white dark:bg-slate-800">
               <LanguageBadge code={h.code} />
-              <span className="text-xs text-slate-500">{new Date(h.changed_at).toLocaleString()} {h.changed_by ? `· ${h.changed_by}` : ""}</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">{new Date(h.changed_at).toLocaleString()} {h.changed_by ? `· ${h.changed_by}` : ""}</span>
             </div>
           ))}
-          <div className="text-xs text-slate-500">Audit trail persisted per customer. Update via PATCH /customers/:id/language with preferred_language.</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400">Audit trail persisted per customer. Update via PATCH /customers/:id/language with preferred_language.</div>
         </div>
       </Modal>
 
@@ -313,24 +313,24 @@ Hadiza Bello,08071234567,,ha`
       <Modal open={bulkOpen} onClose={() => setBulkOpen(false)} title="Import customers — CSV / Excel paste">
         <div className="space-y-4">
           <div className="flex gap-2">
-            <button onClick={() => setBulkTab("csv")} className={`flex-1 py-2.5 rounded-xl border text-sm font-medium flex items-center justify-center gap-2 ${bulkTab === "csv" ? "bg-slate-900 text-white border-slate-900" : "bg-white"}`}><FileDown className="w-4 h-4" /> Upload CSV</button>
-            <button onClick={() => setBulkTab("paste")} className={`flex-1 py-2.5 rounded-xl border text-sm font-medium flex items-center justify-center gap-2 ${bulkTab === "paste" ? "bg-slate-900 text-white border-slate-900" : "bg-white"}`}><ClipboardPaste className="w-4 h-4" /> Paste from Excel</button>
+            <button onClick={() => setBulkTab("csv")} className={`flex-1 py-2.5 rounded-xl border text-sm font-medium flex items-center justify-center gap-2 ${bulkTab === "csv" ? "bg-slate-900 text-white border-slate-900" : "bg-white dark:bg-slate-800"}`}><FileDown className="w-4 h-4" /> Upload CSV</button>
+            <button onClick={() => setBulkTab("paste")} className={`flex-1 py-2.5 rounded-xl border text-sm font-medium flex items-center justify-center gap-2 ${bulkTab === "paste" ? "bg-slate-900 text-white border-slate-900" : "bg-white dark:bg-slate-800"}`}><ClipboardPaste className="w-4 h-4" /> Paste from Excel</button>
           </div>
 
           {bulkTab === "csv" ? (
             <div className="space-y-3">
-              <div className="p-4 rounded-2xl border-2 border-dashed bg-slate-50 text-center">
+              <div className="p-4 rounded-2xl border-2 border-dashed bg-slate-50 dark:bg-slate-700/50 text-center">
                 <Upload className="w-6 h-6 mx-auto text-slate-400" />
                 <p className="text-sm font-medium mt-2">Drop CSV or click to browse</p>
-                <p className="text-xs text-slate-500 mt-1">Columns: <code>name,phone,email,preferred_language</code> — phone/email optional</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Columns: <code>name,phone,email,preferred_language</code> — phone/email optional</p>
                 <input type="file" accept=".csv,.txt" onChange={handleCsvFile} className="mt-3 block w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-brand-600 file:text-white file:text-sm" />
               </div>
               <Button variant="secondary" onClick={downloadSampleCsv} className="w-full gap-2"><FileDown className="w-4 h-4" /> Download sample CSV</Button>
             </div>
           ) : (
             <div className="space-y-2">
-              <p className="text-xs text-slate-500">Copy from Excel/Sheets: <code>Name[TAB]Phone[TAB]Email</code> per line. Example: <code>Musa Ibrahim[TAB]08031234567</code></p>
-              <textarea value={pasteText} onChange={e => setPasteText(e.target.value)} placeholder={"Musa Ibrahim\t08031234567\tmusa@example.com\nha\nFatima Ali\t08039876543\nChinedu Okafor\t08051234567\tchinedu@example.com\tig"} rows={6} className="w-full p-3 rounded-xl border border-slate-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500" />
+              <p className="text-xs text-slate-500 dark:text-slate-400">Copy from Excel/Sheets: <code>Name[TAB]Phone[TAB]Email</code> per line. Example: <code>Musa Ibrahim[TAB]08031234567</code></p>
+              <textarea value={pasteText} onChange={e => setPasteText(e.target.value)} placeholder={"Musa Ibrahim\t08031234567\tmusa@example.com\nha\nFatima Ali\t08039876543\nChinedu Okafor\t08051234567\tchinedu@example.com\tig"} rows={6} className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500" />
               <Button variant="secondary" onClick={handlePasteParse} className="w-full">Parse pasted rows</Button>
             </div>
           )}
@@ -339,24 +339,24 @@ Hadiza Bello,08071234567,,ha`
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-semibold">Preview — {parsedRows.length} rows</h4>
-                <span className="text-xs text-slate-500">First 8 shown • bulk limit 500</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">First 8 shown • bulk limit 500</span>
               </div>
               <div className="max-h-[220px] overflow-auto border rounded-xl">
                 <table className="w-full text-xs">
-                  <thead className="bg-slate-50 sticky top-0"><tr><th className="text-left p-2">#</th><th className="text-left">Name</th><th className="text-left">Phone</th><th className="text-left">Lang</th></tr></thead>
+                  <thead className="bg-slate-50 dark:bg-slate-700/50 sticky top-0"><tr><th className="text-left p-2">#</th><th className="text-left">Name</th><th className="text-left">Phone</th><th className="text-left">Lang</th></tr></thead>
                   <tbody>
                     {parsedRows.slice(0, 8).map((r, i) => (
-                      <tr key={i} className="border-t"><td className="p-2 text-slate-500">{i + 1}</td><td className="p-2 font-medium">{r.name}</td><td className="p-2 font-mono">{r.phone || "—"}</td><td className="p-2"><LanguageBadge code={r.preferred_language || "en"} /></td></tr>
+                      <tr key={i} className="border-t"><td className="p-2 text-slate-500 dark:text-slate-400">{i + 1}</td><td className="p-2 font-medium">{r.name}</td><td className="p-2 font-mono">{r.phone || "—"}</td><td className="p-2"><LanguageBadge code={r.preferred_language || "en"} /></td></tr>
                     ))}
                   </tbody>
                 </table>
-                {parsedRows.length > 8 && <div className="text-xs text-center p-2 text-slate-500">+ {parsedRows.length - 8} more rows</div>}
+                {parsedRows.length > 8 && <div className="text-xs text-center p-2 text-slate-500 dark:text-slate-400">+ {parsedRows.length - 8} more rows</div>}
               </div>
               <div className="flex justify-end gap-2 pt-1">
                 <Button variant="secondary" onClick={() => setParsedRows([])} disabled={bulkSaving}>Clear</Button>
                 <Button onClick={handleBulkImport} disabled={bulkSaving}>{bulkSaving ? "Importing…" : `Import ${parsedRows.length} customers`}</Button>
               </div>
-              <p className="text-xs text-slate-500">Creates via <code>POST /api/v1/customers/bulk</code> • idempotent customer_code • org-isolated</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Creates via <code>POST /api/v1/customers/bulk</code> • idempotent customer_code • org-isolated</p>
             </div>
           )}
         </div>

@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import AIConversationListCreate, AIConversationDetail, PromiseListCreate, DetectLanguageView, GenerateResponseView, VoiceLanguageView, LanguageHistoryView
+from .views import AIConversationListCreate, AIConversationDetail, PromiseListCreate, DetectLanguageView, GenerateResponseView, VoiceLanguageView, LanguageHistoryView, LanguageMetricsView
 
 urlpatterns = [
     path("ai/conversations", AIConversationListCreate.as_view(), name="ai-conversation-list"),
@@ -8,6 +8,7 @@ urlpatterns = [
     path("ai/detect-language", DetectLanguageView.as_view(), name="ai-detect-language"),
     path("ai/generate-response", GenerateResponseView.as_view(), name="ai-generate-response"),
     path("ai/voice-language", VoiceLanguageView.as_view(), name="ai-voice-language"),
+    path("ai/language-metrics", LanguageMetricsView.as_view(), name="ai-language-metrics"),
     path("ai/language-history", LanguageHistoryView.as_view(), name="ai-language-history"),
     path("ai/language-history/<uuid:pk>", LanguageHistoryView.as_view(), name="ai-language-history-detail"),
 ]

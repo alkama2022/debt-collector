@@ -10,6 +10,7 @@ import { useToast } from "../components/ui/toast"
 import { Skeleton } from "../components/ui/skeleton"
 import { CreditCard } from "lucide-react"
 import { downloadReceiptPdf, triggerBlobDownload } from "../services/live"
+import { ConfettiBurst } from "../components/ui/confetti"
 
 export default function Payments() {
   const { payments, invoices, loading, addPayment } = useStore()
@@ -24,6 +25,7 @@ export default function Payments() {
   const [ref, setRef] = useState("PAY-" + Math.floor(10000 + Math.random() * 90000))
   const [notes, setNotes] = useState("")
   const [saving, setSaving] = useState(false)
+  const [confettiKey, setConfettiKey] = useState(0)
 
   const list = useMemo(() => payments.filter(p =>
     !q ||
@@ -56,6 +58,8 @@ export default function Payments() {
       await addPayment({ invoiceId: inv.id, amount: n, method, ref, notes })
       const remaining = inv.balance - n
       push(`Payment recorded — ${formatCurrency(n)}`, "success")
+      setConfettiKey(k => k + 1)
+      try { navigator.vibrate?.([40, 30, 40]) } catch {}
       setOpen(false)
       // Find the created payment id for receipt download (optimistic: use last payment)
       const created = payments[0] // will be updated on next refresh; fallback to invoice
@@ -77,10 +81,11 @@ export default function Payments() {
 
   return (
     <div className="space-y-4">
+      <ConfettiBurst trigger={confettiKey} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">Payments</h1>
-          <p className="text-sm text-slate-600">{payments.length} payments</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400">{payments.length} payments {confettiKey > 0 ? "• 🎉 last payment celebrated!" : ""}</p>
         </div>
         <Button onClick={() => setOpen(true)}>Record Payment</Button>
       </div>
@@ -90,14 +95,14 @@ export default function Payments() {
           value={q}
           onChange={e => setQ(e.target.value)}
           placeholder="Search payment, customer, invoice"
-          className="w-full md:w-80 h-11 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className="w-full md:w-80 h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
       </Card>
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-xs text-slate-500">
+            <thead className="bg-slate-50 dark:bg-slate-700/50 text-xs text-slate-500 dark:text-slate-400">
               <tr>
                 <th className="text-left p-3">Reference</th>
                 <th className="text-left">Customer</th>
@@ -110,7 +115,7 @@ export default function Payments() {
             </thead>
             <tbody>
               {list.map(p => (
-                <tr key={p.id} className="border-t hover:bg-slate-50">
+                <tr key={p.id} className="border-t hover:bg-slate-50 dark:bg-slate-700/50">
                   <td className="p-3 font-mono font-medium">{p.reference}</td>
                   <td>{p.customerName}</td>
                   <td className="font-mono text-xs">{p.invoiceNumber}</td>
@@ -122,7 +127,7 @@ export default function Payments() {
               ))}
               {list.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-sm text-slate-500">
+                  <td colSpan={7} className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">
                     No payments yet — record one to see it appear here.
                   </td>
                 </tr>
@@ -146,7 +151,7 @@ export default function Payments() {
           />
           <Input label="Amount" value={amount} onChange={e => setAmount(e.target.value)} />
           {(selInv || openInvoices[0]?.id) && (
-            <div className="text-xs text-slate-600">
+            <div className="text-xs text-slate-600 dark:text-slate-400">
               Balance: {formatCurrency(invoices.find(i => i.id === (selInv || openInvoices[0]?.id))?.balance || 0)}
             </div>
           )}
@@ -175,17 +180,17 @@ export default function Payments() {
       {/* Receipt modal */}
       <Modal open={!!openReceipt} onClose={() => setOpenReceipt(null)} title="Payment received successfully.">
         <div className="space-y-3">
-          <div className="p-4 rounded-2xl border border-slate-200 bg-white">
+          <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
             <div className="flex items-center gap-2 font-semibold">
               <CreditCard className="w-4 h-4" /> Receipt — {openReceipt?.invoice}
             </div>
             <div className="mt-3 space-y-1 text-sm">
-              <div className="flex justify-between"><span className="text-slate-500">Customer</span><span className="font-medium">{openReceipt?.customer}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Amount</span><span className="font-bold">{openReceipt ? formatCurrency(Number(openReceipt.amount)) : ""}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Method</span><span>{openReceipt?.method}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Reference</span><span className="font-mono">{openReceipt?.ref}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Date</span><span>{openReceipt?.date ? formatDate(openReceipt.date) : ""}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Remaining balance</span><span className="font-medium">{openReceipt ? formatCurrency(openReceipt.remaining) : ""}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Customer</span><span className="font-medium">{openReceipt?.customer}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Amount</span><span className="font-bold">{openReceipt ? formatCurrency(Number(openReceipt.amount)) : ""}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Method</span><span>{openReceipt?.method}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Reference</span><span className="font-mono">{openReceipt?.ref}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Date</span><span>{openReceipt?.date ? formatDate(openReceipt.date) : ""}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Remaining balance</span><span className="font-medium">{openReceipt ? formatCurrency(openReceipt.remaining) : ""}</span></div>
             </div>
           </div>
           <div className="flex gap-2 justify-end">
