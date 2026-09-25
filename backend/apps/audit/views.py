@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import AuditLog
 from .serializers import AuditLogSerializer
+from apps.tenancy.org import get_org
 
 
 class AuditLogList(generics.ListAPIView):
@@ -14,10 +15,7 @@ class AuditLogList(generics.ListAPIView):
 
     def get_queryset(self):
         # SECURITY: always scope audit logs to the current org
-        org = getattr(self.request, "org", None)
-        if org is None and hasattr(self.request, "user") and self.request.user.is_authenticated:
-            m = self.request.user.memberships.select_related("org").first()
-            org = m.org if m else None
+        org = get_org(self.request)
         if org is None:
             return AuditLog.objects.none()
         # AuditLog has no org FK directly — scope via actor memberships to this org

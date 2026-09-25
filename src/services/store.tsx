@@ -55,7 +55,7 @@ export type Store = State & {
   addCustomer: (data: { name: string; phone: string; email?: string; preferred_language?: string }) => Promise<void>
   bulkAddCustomers: (rows: { name: string; phone?: string; email?: string; preferred_language?: string }[]) => Promise<{ created: number; failed: number; errors: any[] }>
   addInvoice: (data: { customerId: string; amount: number; dueDate: string; desc: string }) => Promise<void>
-  addPayment: (data: { invoiceId: string; amount: number; method: string; ref: string; notes?: string }) => Promise<void>
+  addPayment: (data: { invoiceId: string; amount: number; method: string; ref: string; notes?: string }) => Promise<Payment>
   addReminder: (data: { invoiceId: string; channel: Reminder["channel"] }) => Promise<void>
   markNotifRead: (id: string) => void
   markAllRead: () => void
@@ -252,20 +252,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         invoice: data.invoiceId,
         amount: data.amount.toFixed(2),
         currency: "NGN",
-        provider: data.method,
+        provider: data.method,   // serializer maps this to provider=manual + method label
+        method: data.method,
         provider_ref: data.ref,
+        notes: data.notes || "",
       },
       `pay-${Date.now()}`
     )
     const inv = invoiceMapRef.current.get(data.invoiceId)
     const pay = normalizePayment(raw, inv?.number, inv?.customerName)
 
-    // Optimistically update invoice balance
+    // Optimistically update invoice balance and status
     const updatedInvoices = state.invoices.map(i => {
       if (i.id !== data.invoiceId) return i
       const newBalance = Math.max(0, i.balance - data.amount)
       const newAmountPaid = i.amountPaid + data.amount
-      return { ...i, balance: newBalance, amountPaid: newAmountPaid, status: newBalance <= 0 ? ("paid" as const) : i.status }
+      const newStatus =
+        newBalance <= 0 ? ("paid" as const) :
+        newAmountPaid > 0 ? ("partial" as const) :
+        i.status
+      return { ...i, balance: newBalance, amountPaid: newAmountPaid, status: newStatus }
     })
 
     dispatch({ type: "SET_INVOICES", invoices: updatedInvoices })
@@ -274,6 +280,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       type: "ADD_NOTIF",
       notif: { id: `n${Date.now()}`, title: "Payment received", body: `${pay.customerName} paid ₦${data.amount.toLocaleString()}`, time: new Date().toISOString(), read: false, type: "payment" },
     })
+    // Return the raw payment so callers can use the real ID (e.g. receipt download)
+    return pay
   }, [state.invoices, state.payments])
 
   const addReminder = useCallback(async (data: { invoiceId: string; channel: Reminder["channel"] }) => {

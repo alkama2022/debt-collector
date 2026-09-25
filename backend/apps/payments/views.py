@@ -12,6 +12,7 @@ from decimal import Decimal
 import uuid
 from .models import Payment, Receipt
 from .serializers import PaymentSerializer
+from apps.tenancy.org import get_org
 
 class PaymentListCreate(generics.ListCreateAPIView):
     serializer_class = PaymentSerializer
@@ -22,7 +23,7 @@ class PaymentListCreate(generics.ListCreateAPIView):
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        org = getattr(self.request, "org", None)
+        org = get_org(self.request)
         if org is None:
             return Payment.objects.none()
         return Payment.objects.for_org(org).select_related("invoice")
@@ -30,7 +31,7 @@ class PaymentListCreate(generics.ListCreateAPIView):
     def create(self, request, *args, **kwargs):
         idem_key = request.headers.get("X-Idempotency-Key") or request.headers.get("Idempotency-Key") or request.data.get("idempotency_key")
         if idem_key:
-            org = getattr(request, "org", None)
+            org = get_org(request)
             if org is not None:
                 existing = Payment.objects.filter(idempotency_key=idem_key, org=org).first()
                 if existing:
@@ -46,57 +47,166 @@ class PaymentDetail(generics.RetrieveUpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        org = getattr(self.request, "org", None)
+        org = get_org(self.request)
         if org is None:
             return Payment.objects.none()
         return Payment.objects.for_org(org)
 
 
+def _initialize_paystack(request, org_required=False):
+    """
+    Shared logic for both authenticated and unauthenticated Paystack initialization.
+
+    When org_required=True (authenticated path), resolves org from the request user.
+    When org_required=False (public path), resolves org directly from the invoice.
+    """
+    from apps.invoices.models import Invoice
+
+    invoice_id = request.data.get("invoice") or request.data.get("invoice_id")
+    if not invoice_id:
+        return Response({"success": False, "message": "invoice required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Resolve org
+    org = get_org(request)
+
+    if org_required and org is None:
+        return Response({"success": False, "message": "Organization required"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Resolve invoice — public path looks up by ID globally (no org filter)
+    try:
+        if org:
+            invoice = Invoice.objects.for_org(org).get(pk=invoice_id, deleted_at__isnull=True)
+        else:
+            invoice = Invoice.objects.select_related("customer", "org").get(pk=invoice_id, deleted_at__isnull=True)
+            org = invoice.org
+    except Invoice.DoesNotExist:
+        return Response({"success": False, "message": "Invoice not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if invoice.balance <= 0:
+        return Response({"success": False, "message": "Invoice already paid"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Build reference and metadata
+    reference = f"CN-{invoice.invoice_number}-{str(uuid.uuid4())[:8].upper()}"
+    amount_minor = int(Decimal(invoice.balance) * Decimal(100))
+    email = invoice.customer.email or f"{invoice.customer.phone or 'customer'}@collectnaija.mock"
+    frontend_base = getattr(settings, "FRONTEND_URL", "") or request.build_absolute_uri("/").split("/api")[0]
+    pay_url = f"{frontend_base.rstrip('/')}/pay/{invoice.id}"
+    callback_url = f"{pay_url}?reference={reference}"
+    metadata = {
+        "invoice_id": str(invoice.id),
+        "org_id": str(org.id),
+        "invoice_number": invoice.invoice_number,
+        "pay_url": pay_url,
+        "custom_fields": [{"display_name": "Invoice", "variable_name": "invoice_number", "value": invoice.invoice_number}],
+    }
+
+    # Pre-create pending payment idempotently
+    idem = f"init:{reference}"
+    if not Payment.objects.filter(provider_ref=reference).exists():
+        Payment.objects.create(
+            org=org, invoice=invoice, amount=invoice.balance, currency=invoice.currency,
+            status="pending", provider="paystack", provider_ref=reference, idempotency_key=idem,
+        )
+
+    from .paystack import initialize_payment
+    try:
+        init = initialize_payment(
+            email=email, amount_minor=amount_minor,
+            reference=reference, metadata=metadata, callback_url=callback_url,
+        )
+        return Response({
+            "success": True,
+            "data": {
+                "authorization_url": init.get("authorization_url"),
+                "access_code": init.get("access_code"),
+                "reference": reference,
+                "mock": init.get("mock", False),
+                "pay_url": pay_url,
+            },
+        })
+    except Exception as e:
+        return Response({"success": False, "message": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+
+
+class PublicPaystackInitializeView(APIView):
+    """
+    POST /public/pay/<invoice_id>/initialize  — no authentication required.
+    Called from the public /pay/:id page when the customer clicks "Pay".
+    Returns the same shape as the authenticated initialize endpoint.
+    """
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def post(self, request, pk):
+        # Inject invoice id from URL param so _initialize_paystack can read it
+        data = request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
+        data["invoice"] = str(pk)
+        # Patch request.data for the helper
+        request._full_data = data
+        return _initialize_paystack(request, org_required=False)
+
+
+class PublicPaystackVerifyView(APIView):
+    """
+    GET /public/pay/verify?reference=...  — no authentication required.
+    Called from the customer's browser after Paystack redirects back.
+    """
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        reference = request.query_params.get("reference") or request.query_params.get("trxref")
+        if not reference:
+            return Response({"success": False, "message": "reference required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        from .paystack import verify_payment
+        is_mock = not getattr(settings, "PAYSTACK_SECRET_KEY", "")
+        paystack_data = None
+        try:
+            paystack_data = verify_payment(reference)
+        except Exception as e:
+            if not is_mock:
+                return Response({"success": False, "message": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+
+        payment = Payment.objects.filter(provider_ref=reference).first()
+        if not payment:
+            return Response({"success": False, "message": "Payment not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        should_succeed = is_mock or (paystack_data and paystack_data.get("status") == "success")
+        if should_succeed and payment.status != "successful":
+            payment.status = "successful"
+            payment.verified_at = timezone.now()
+            payment.save(update_fields=["status", "verified_at"])
+
+        return Response({
+            "success": True,
+            "data": {
+                "payment_id": str(payment.id),
+                "status": payment.status,
+                "invoice_id": str(payment.invoice_id),
+                "mock": is_mock,
+            },
+        })
+
+    def post(self, request):
+        reference = request.data.get("reference") or request.query_params.get("reference")
+        if reference:
+            from django.http import QueryDict
+            qd = request.query_params.copy()
+            qd["reference"] = reference
+            request._request.GET = qd
+        return self.get(request)
+
+
 class PaystackInitializeView(APIView):
-    """POST /payments/initialize {invoice: uuid} -> {authorization_url, reference, mock} """
+    """POST /payments/initialize {invoice: uuid} -> {authorization_url, reference, mock}
+    Requires authentication (business owner testing their own invoice link).
+    For unauthenticated customer payments, use PublicPaystackInitializeView below.
+    """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        org = getattr(request, "org", None)
-        if org is None and hasattr(request.user, "memberships"):
-            m = request.user.memberships.select_related("org").first()
-            org = m.org if m else None
-        if org is None:
-            return Response({"success": False, "message": "Organization required"}, status=status.HTTP_401_UNAUTHORIZED)
-        invoice_id = request.data.get("invoice") or request.data.get("invoice_id")
-        if not invoice_id:
-            return Response({"success": False, "message": "invoice required"}, status=status.HTTP_400_BAD_REQUEST)
-        from apps.invoices.models import Invoice
-        try:
-            invoice = Invoice.objects.for_org(org).get(pk=invoice_id, deleted_at__isnull=True)
-        except Invoice.DoesNotExist:
-            return Response({"success": False, "message": "Invoice not found"}, status=status.HTTP_404_NOT_FOUND)
-        if invoice.balance <= 0:
-            return Response({"success": False, "message": "Invoice already paid"}, status=status.HTTP_400_BAD_REQUEST)
-        # Build reference and metadata
-        reference = f"CN-{invoice.invoice_number}-{str(uuid.uuid4())[:8].upper()}"
-        amount_minor = int(Decimal(invoice.balance) * Decimal(100))
-        # Customer email for Paystack
-        email = invoice.customer.email or f"{invoice.customer.phone or 'customer'}@collectnaija.mock"
-        # Build pay_url for metadata / callback
-        frontend_base = getattr(settings, "FRONTEND_URL", "") or request.build_absolute_uri("/").split("/api")[0]
-        pay_url = f"{frontend_base.rstrip('/')}/pay/{invoice.id}"
-        callback_url = f"{pay_url}?reference={reference}"
-        metadata = {"invoice_id": str(invoice.id), "org_id": str(org.id), "invoice_number": invoice.invoice_number, "pay_url": pay_url, "custom_fields": [{"display_name": "Invoice", "variable_name": "invoice_number", "value": invoice.invoice_number}]}
-        # Pre-create pending payment (idempotent)
-        idem = request.headers.get("X-Idempotency-Key") or f"init:{reference}"
-        existing = Payment.objects.filter(provider_ref=reference).first()
-        if not existing:
-            Payment.objects.create(
-                org=org, invoice=invoice, amount=invoice.balance, currency=invoice.currency,
-                status="pending", provider="paystack", provider_ref=reference, idempotency_key=idem
-            )
-        from .paystack import initialize_payment
-        try:
-            init = initialize_payment(email=email, amount_minor=amount_minor, reference=reference, metadata=metadata, callback_url=callback_url)
-            return Response({"success": True, "data": {"authorization_url": init.get("authorization_url"), "access_code": init.get("access_code"), "reference": reference, "mock": init.get("mock", False), "pay_url": pay_url}})
-        except Exception as e:
-            return Response({"success": False, "message": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+        return _initialize_paystack(request, org_required=True)
 
 
 class PaystackVerifyView(APIView):
@@ -104,7 +214,7 @@ class PaystackVerifyView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        org = getattr(request, "org", None)
+        org = get_org(request)
         reference = request.query_params.get("reference") or request.query_params.get("trxref")
         if not reference:
             return Response({"success": False, "message": "reference required"}, status=status.HTTP_400_BAD_REQUEST)
@@ -162,10 +272,7 @@ class ReceiptPdfView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
-        org = getattr(request, "org", None)
-        if org is None and hasattr(request.user, "memberships"):
-            m = request.user.memberships.select_related("org").first()
-            org = m.org if m else None
+        org = get_org(request)
         if org is None:
             return Response({"success": False, "message": "Organization required"}, status=status.HTTP_401_UNAUTHORIZED)
         # pk is payment id

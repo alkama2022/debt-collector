@@ -4,7 +4,13 @@ services:
     runtime: python
     rootDir: backend
     buildCommand: "./build.sh"
-    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 3 --timeout 60"
+    # migrate + seed_billing must run before gunicorn. seed_billing is
+    # idempotent (get_or_create), so it is safe on every deploy. Without it
+    # the plans table stays empty and every /billing/subscribe call 404s.
+    startCommand: >-
+      sh -c "python manage.py migrate --noinput
+      && python manage.py seed_billing
+      && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 3 --timeout 60"
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.0"

@@ -10,19 +10,29 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U collectnaija -d collectnaija"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
   redis:
     image: redis:7
     ports:
       - "6379:6379"
   api:
     build: ./backend
-    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60 --access-logfile -
+    # No `command:` here on purpose — the Dockerfile CMD runs
+    # `migrate && seed_billing && gunicorn`. Overriding it with a bare
+    # gunicorn command skips migrations and leaves the plans table empty,
+    # which makes every /billing/subscribe call 404.
     env_file: .env
     ports:
       - "8000:8000"
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
       - ./backend:/app
   worker:

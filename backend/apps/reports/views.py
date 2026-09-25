@@ -17,13 +17,11 @@ from django.utils import timezone
 from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from apps.tenancy.org import get_org
 
 
 def _get_org(request):
-    org = getattr(request, "org", None)
-    if org is None and hasattr(request.user, "memberships"):
-        m = request.user.memberships.select_related("org").first()
-        org = m.org if m else None
+    org = get_org(request)
     return org
 
 

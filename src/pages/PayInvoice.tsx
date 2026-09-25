@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import { formatCurrency, formatDate } from "../utils/format"
 import { Card } from "../components/ui/card"
 import { Button } from "../components/ui/button"
-import { getPublicPayInfo, initializePaystackPayment, verifyPaystackPayment } from "../services/live"
+import { getPublicPayInfo, publicInitializePayment, publicVerifyPayment } from "../services/live"
 import { ConfettiBurst } from "../components/ui/confetti"
 
 type PublicInvoice = {
@@ -31,22 +31,22 @@ export default function PayInvoice() {
   // Load public pay info (no auth) + handle Paystack callback verify
   useEffect(() => {
     if (!id) return
-    // If returning from Paystack with reference, verify first
+    // If returning from Paystack with reference, verify first (public endpoint — no auth needed)
     if (reference) {
       setVerifyNote("Verifying payment with Paystack…")
-      verifyPaystackPayment(reference).then(() => {
-        setVerifyNote("Verified — checking status…")
-        // fall through to load
+      publicVerifyPayment(reference).then(() => {
+        setVerifyNote("Verified — updating invoice status…")
       }).catch(() => {
-        setVerifyNote("Verification pending — if mock, will succeed automatically.")
+        setVerifyNote("Verification pending — balance will update automatically.")
       }).finally(() => {
-        // load invoice after verify
-        getPublicPayInfo(id).then(setInv).catch(() => setError("Invoice not found — ask business for new link.")).finally(() => setLoading(false))
-        setSuccess(true)
+        getPublicPayInfo(id)
+          .then(data => { setInv(data); setSuccess(true) })
+          .catch(() => setError("Invoice not found — ask the business for a new link."))
+          .finally(() => setLoading(false))
       })
       return
     }
-    getPublicPayInfo(id).then(setInv).catch(() => setError("Invoice not found or you are not authorized. Ask the business for a new link.")).finally(() => setLoading(false))
+    getPublicPayInfo(id).then(setInv).catch(() => setError("Invoice not found or link has expired. Ask the business for a new link.")).finally(() => setLoading(false))
   }, [id, reference])
 
   const handlePay = async () => {
@@ -54,27 +54,17 @@ export default function PayInvoice() {
     if (Number(inv.balance) <= 0) return
     setPaying(true)
     try {
-      // Try to initialize via authenticated endpoint if logged in (business testing own link)
-      const token = localStorage.getItem("cn_token")
-      if (token) {
-        const init = await initializePaystackPayment(id)
-        if (init.mock) {
-          // Mock mode: directly verify the reference (auto-success via verify endpoint)
-          await verifyPaystackPayment(init.reference).catch(() => {})
-          setSuccess(true)
-        } else if (init.authorization_url) {
-          window.location.href = init.authorization_url
-          return
-        }
-      } else {
-        // Customer without login: create mock success by hitting public verify via stored pending payment
-        // Fallback: show instructions — real flow requires business to have initialized
-        setError("To pay, use the link sent on WhatsApp (it includes Paystack checkout). If you are the business owner, login then click Pay again to initialize Paystack.")
-        // Still attempt mock verify with a generated ref for demo
+      // Use the public endpoint — works whether or not the customer is logged in
+      const init = await publicInitializePayment(id)
+      if (init.mock) {
+        // Mock mode: verify immediately
+        await publicVerifyPayment(init.reference).catch(() => {})
         setSuccess(true)
+      } else if (init.authorization_url) {
+        window.location.href = init.authorization_url
       }
     } catch (e: any) {
-      setError(e?.data?.message || "Payment initialization failed — check backend and PAYSTACK_SECRET_KEY")
+      setError(e?.data?.message || "Payment initialization failed. Please try again or contact the business.")
     } finally {
       setPaying(false)
     }

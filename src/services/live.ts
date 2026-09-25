@@ -293,7 +293,9 @@ export async function createPayment(payload: {
   amount: string | number
   currency?: string
   provider?: string
+  method?: string
   provider_ref?: string
+  notes?: string
 }, idempotencyKey?: string): Promise<RawPayment> {
   const headers: Record<string, string> = {}
   if (idempotencyKey) headers["X-Idempotency-Key"] = idempotencyKey
@@ -302,7 +304,6 @@ export async function createPayment(payload: {
     headers,
     body: JSON.stringify({
       currency: "NGN",
-      provider: "manual",
       status: "successful",
       ...payload,
     }),
@@ -523,6 +524,24 @@ export async function getPublicPayInfo(invoiceId: string): Promise<{ invoice_num
 
 export async function initializePaystackPayment(invoiceId: string): Promise<{ authorization_url: string; reference: string; access_code: string; mock: boolean; pay_url: string }> {
   const res = await apiFetch<{ success: boolean; data: { authorization_url: string; reference: string; access_code: string; mock: boolean; pay_url: string } }>(`/payments/initialize`, { method: "POST", body: JSON.stringify({ invoice: invoiceId }) })
+  return res.data
+}
+
+/** Public (no auth) — called from the customer /pay/:id page */
+export async function publicInitializePayment(invoiceId: string): Promise<{ authorization_url: string; reference: string; mock: boolean; pay_url: string }> {
+  const res = await apiFetch<{ success: boolean; data: { authorization_url: string; reference: string; mock: boolean; pay_url: string } }>(
+    `/public/pay/${invoiceId}/initialize`,
+    { method: "POST", auth: false }
+  )
+  return res.data
+}
+
+/** Public (no auth) — called from the customer browser after Paystack redirect */
+export async function publicVerifyPayment(reference: string): Promise<{ payment_id: string; status: string; invoice_id: string; mock: boolean }> {
+  const res = await apiFetch<{ success: boolean; data: { payment_id: string; status: string; invoice_id: string; mock: boolean } }>(
+    `/public/pay/verify?reference=${encodeURIComponent(reference)}`,
+    { auth: false }
+  )
   return res.data
 }
 

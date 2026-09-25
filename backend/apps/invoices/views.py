@@ -21,12 +21,7 @@ class InvoiceListCreate(generics.ListCreateAPIView):
     ordering = ["-created_at"]
 
     def _get_org(self):
-        org = getattr(self.request, "org", None)
-        if org is None and hasattr(self.request, "user") and self.request.user.is_authenticated:
-            m = self.request.user.memberships.select_related("org").first()
-            if m:
-                org = m.org
-        return org
+        return get_org(self.request)
 
     def get_queryset(self):
         org = self._get_org()
@@ -59,12 +54,7 @@ class InvoiceDetail(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _get_org(self):
-        org = getattr(self.request, "org", None)
-        if org is None and hasattr(self.request, "user") and self.request.user.is_authenticated:
-            m = self.request.user.memberships.select_related("org").first()
-            if m:
-                org = m.org
-        return org
+        return get_org(self.request)
 
     def get_queryset(self):
         org = self._get_org()
@@ -82,10 +72,7 @@ class InvoicePdfView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
-        org = getattr(request, "org", None)
-        if org is None and hasattr(request.user, "memberships"):
-            m = request.user.memberships.select_related("org").first()
-            org = m.org if m else None
+        org = get_org(request)
         if org is None:
             return Response({"success": False, "message": "Organization required"}, status=http_status.HTTP_401_UNAUTHORIZED)
         invoice = get_object_or_404(Invoice.objects.for_org(org).prefetch_related("items").select_related("customer", "org"), pk=pk, deleted_at__isnull=True)
@@ -203,10 +190,7 @@ class InvoicePayLinkView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
-        org = getattr(request, "org", None)
-        if org is None and hasattr(request.user, "memberships"):
-            m = request.user.memberships.select_related("org").first()
-            org = m.org if m else None
+        org = get_org(request)
         if org is None:
             return Response({"success": False, "message": "Organization required"}, status=http_status.HTTP_401_UNAUTHORIZED)
         invoice = get_object_or_404(Invoice, pk=pk, org=org, deleted_at__isnull=True)

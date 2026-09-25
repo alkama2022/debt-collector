@@ -6,6 +6,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from .models import VoiceCall, CallAttempt
 from .serializers import VoiceCallSerializer, CallAttemptSerializer
+from apps.tenancy.org import get_org
 
 logger = logging.getLogger(__name__)
 
@@ -17,16 +18,13 @@ class VoiceCallListCreate(generics.ListCreateAPIView):
     filterset_fields = ["status", "customer", "invoice"]
 
     def get_queryset(self):
-        org = getattr(self.request, "org", None)
+        org = get_org(self.request)
         if org is None:
             return VoiceCall.objects.none()
         return VoiceCall.objects.for_org(org).prefetch_related("attempts")
 
     def perform_create(self, serializer):
-        org = getattr(self.request, "org", None)
-        if org is None and hasattr(self.request, "user") and self.request.user.is_authenticated:
-            m = self.request.user.memberships.select_related("org").first()
-            org = m.org if m else None
+        org = get_org(self.request)
         if org:
             from apps.subscriptions.entitlements import check_feature_access, check_limit
             from rest_framework.exceptions import PermissionDenied
@@ -55,7 +53,7 @@ class VoiceCallDetail(generics.RetrieveUpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        org = getattr(self.request, "org", None)
+        org = get_org(self.request)
         if org is None:
             return VoiceCall.objects.none()
         return VoiceCall.objects.for_org(org)
@@ -70,10 +68,7 @@ class VoiceCallTriggerView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
-        org = getattr(request, "org", None)
-        if org is None and hasattr(request, "user") and request.user.is_authenticated:
-            m = request.user.memberships.select_related("org").first()
-            org = m.org if m else None
+        org = get_org(request)
 
         try:
             call = VoiceCall.objects.for_org(org).get(pk=pk)

@@ -12,18 +12,33 @@ logger = logging.getLogger(__name__)
 
 
 def verify_signature(provider, payload_raw, signature):
-    """HMAC verification. If secret not set, accept all (dev mode)."""
-    secret = ""
+    """
+    HMAC verification. If secret not set, accept all (dev mode).
+
+    Paystack: HMAC-SHA512 of raw body, compared against X-Paystack-Signature header.
+    Flutterwave: plain-string comparison of verif-hash header against FLUTTERWAVE_SECRET_KEY
+                 (FLW does NOT use HMAC — the header IS the secret).
+    """
     if provider == "paystack":
         secret = getattr(settings, "PAYSTACK_WEBHOOK_SECRET", "")
+        if not secret:
+            return True
+        if not signature:
+            return False
+        expected = hmac.new(secret.encode(), payload_raw, hashlib.sha512).hexdigest()
+        return hmac.compare_digest(expected, signature)
+
     elif provider == "flutterwave":
         secret = getattr(settings, "FLUTTERWAVE_SECRET_KEY", "")
-    if not secret:
-        return True
-    if not signature:
-        return False
-    expected = hmac.new(secret.encode(), payload_raw, hashlib.sha512).hexdigest()
-    return hmac.compare_digest(expected, signature)
+        if not secret:
+            return True
+        if not signature:
+            return False
+        # Flutterwave sends the raw secret as the verif-hash header value
+        return hmac.compare_digest(secret, signature)
+
+    # manual / unknown — no signature required
+    return True
 
 
 class PaymentWebhookView(APIView):

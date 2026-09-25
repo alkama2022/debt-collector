@@ -18,12 +18,7 @@ class CustomerListCreate(generics.ListCreateAPIView):
     ordering = ["-created_at"]
 
     def _get_org(self):
-        org = getattr(self.request, "org", None)
-        if org is None and hasattr(self.request, "user") and self.request.user.is_authenticated:
-            m = self.request.user.memberships.select_related("org").first()
-            if m:
-                org = m.org
-        return org
+        return get_org(self.request)
 
     def get_queryset(self):
         org = self._get_org()
@@ -47,12 +42,7 @@ class CustomerDetail(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _get_org(self):
-        org = getattr(self.request, "org", None)
-        if org is None and hasattr(self.request, "user") and self.request.user.is_authenticated:
-            m = self.request.user.memberships.select_related("org").first()
-            if m:
-                org = m.org
-        return org
+        return get_org(self.request)
 
     def get_queryset(self):
         org = self._get_org()
@@ -69,11 +59,7 @@ class CustomerBulkCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _get_org(self, request):
-        org = getattr(request, "org", None)
-        if org is None and hasattr(request.user, "memberships"):
-            m = request.user.memberships.select_related("org").first()
-            org = m.org if m else None
-        return org
+        return get_org(request)
 
     def post(self, request):
         org = self._get_org(request)
@@ -166,12 +152,7 @@ class CustomerLanguageView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _get_org(self, request):
-        org = getattr(request, "org", None)
-        if org is None and hasattr(request, "user") and request.user.is_authenticated:
-            m = request.user.memberships.select_related("org").first()
-            if m:
-                org = m.org
-        return org
+        return get_org(request)
 
     def get(self, request, pk):
         org = self._get_org(request)

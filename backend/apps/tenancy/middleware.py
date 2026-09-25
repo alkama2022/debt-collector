@@ -114,23 +114,15 @@ def resolve_org(request):
     Works correctly for both session-auth and JWT because it reads
     request.user AFTER DRF authentication has run.
 
+    Thin wrapper around apps.tenancy.org.get_org so there is a single
+    implementation of the JWT fallback.
+
     Usage:
         org = resolve_org(request)
-
-    Replaces the duplicated _get_org() pattern across every view.
     """
-    # Try request.org first (may already be set by middleware for session auth)
-    org = getattr(request, "org", None)
+    from .org import get_org
+
+    org = get_org(request)
     if org is not None:
-        return org
-
-    # JWT path: DRF has now authenticated; resolve from user + header
-    user = getattr(request, "user", None)
-    if user and getattr(user, "is_authenticated", False):
-        org = _resolve_org_for_user(user, getattr(request, "headers", {}))
-        # Cache back on request so subsequent calls in the same request are free
-        request.org = org
         set_current_org(org)
-        return org
-
-    return None
+    return org

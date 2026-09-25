@@ -4,13 +4,14 @@ from rest_framework.views import APIView
 from django.utils import timezone
 from .models import CollectionPolicy, Campaign
 from .serializers import CollectionPolicySerializer, CampaignSerializer
+from apps.tenancy.org import get_org
 
 class CollectionPolicyView(generics.RetrieveUpdateAPIView):
     serializer_class = CollectionPolicySerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
-        org = getattr(self.request, "org", None)
+        org = get_org(self.request)
         if org is None:
             from rest_framework.exceptions import NotFound
             raise NotFound("Organization context required")
@@ -22,16 +23,13 @@ class CampaignListCreate(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        org = getattr(self.request, "org", None)
+        org = get_org(self.request)
         if org is None:
             return Campaign.objects.none()
         return Campaign.objects.filter(org=org).order_by("-created_at")
 
     def perform_create(self, serializer):
-        org = getattr(self.request, "org", None)
-        if org is None and hasattr(self.request, "user") and self.request.user.is_authenticated:
-            m = self.request.user.memberships.select_related("org").first()
-            org = m.org if m else None
+        org = get_org(self.request)
         if org:
             from apps.subscriptions.entitlements import check_feature_access
             from rest_framework.exceptions import PermissionDenied
@@ -45,7 +43,7 @@ class CampaignDetail(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        org = getattr(self.request, "org", None)
+        org = get_org(self.request)
         if org is None:
             return Campaign.objects.none()
         return Campaign.objects.filter(org=org)
@@ -56,10 +54,7 @@ class CampaignLaunchView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
-        org = getattr(request, "org", None)
-        if org is None and hasattr(request.user, "memberships"):
-            m = request.user.memberships.select_related("org").first()
-            org = m.org if m else None
+        org = get_org(request)
         try:
             campaign = Campaign.objects.get(pk=pk, org=org)
         except Campaign.DoesNotExist:
@@ -127,7 +122,7 @@ class CampaignStatsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
-        org = getattr(request, "org", None)
+        org = get_org(request)
         try:
             campaign = Campaign.objects.get(pk=pk, org=org)
         except Campaign.DoesNotExist:

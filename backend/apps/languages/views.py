@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from .models import Language, OrganizationLanguageSettings
 from .serializers import LanguageSerializer, OrganizationLanguageSettingsSerializer
+from apps.tenancy.org import get_org
 
 
 class LanguageDetectView(APIView):
@@ -52,11 +53,7 @@ class LanguageResolveView(APIView):
         customer_id = request.query_params.get("customer_id")
         text = (request.query_params.get("text") or "").strip()
 
-        org = getattr(request, "org", None)
-        if org is None and hasattr(request, "user") and request.user.is_authenticated:
-            m = request.user.memberships.select_related("org").first()
-            if m:
-                org = m.org
+        org = get_org(request)
 
         # 1. Customer preferred language
         if customer_id:
@@ -132,12 +129,7 @@ class OrganizationLanguageSettingsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _get_org(self, request):
-        org = getattr(request, "org", None)
-        if org is None and hasattr(request, "user") and request.user.is_authenticated:
-            m = request.user.memberships.select_related("org").first()
-            if m:
-                org = m.org
-        return org
+        return get_org(request)
 
     def _get_or_create(self, org):
         obj, created = OrganizationLanguageSettings.objects.get_or_create(

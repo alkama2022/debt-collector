@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Payment, Receipt
+from apps.tenancy.org import get_org
 
 # Frontend sends human-readable method names; map them to the provider enum
 _METHOD_TO_PROVIDER = {
@@ -49,7 +50,7 @@ class PaymentSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         request = self.context.get("request")
-        org = getattr(request, "org", None) if request else None
+        org = get_org(request) if request else None
         if org is None and request and hasattr(request, "user") and request.user.is_authenticated:
             m = request.user.memberships.select_related("org").first()
             org = m.org if m else None

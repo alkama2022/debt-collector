@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Customer
+from apps.tenancy.org import get_org
 
 
 def _language_qs():
@@ -33,7 +34,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         request = self.context.get("request")
-        org = getattr(request, "org", None) if request else None
+        org = get_org(request) if request else None
         if org is None and request and hasattr(request, "user") and request.user.is_authenticated:
             m = request.user.memberships.select_related("org").first()
             if m:

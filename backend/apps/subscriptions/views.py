@@ -16,12 +16,7 @@ from .usage import get_current_usage, get_all_usage, commit_or_create_usage, cal
 
 
 def _require_org(request):
-    org = getattr(request, "org", None)
-    if org is None and hasattr(request.user, "memberships"):
-        m = request.user.memberships.select_related("org").first()
-        if m:
-            org = m.org
-            request.org = org
+    org = get_org(request)
     if org is None:
         raise NotFound("Organization context required. Send X-Org-Id header or create an organization.")
     return org
@@ -36,12 +31,36 @@ def _require_owner_or_admin(request):
     return org
 
 def _is_billing_manager(request):
-    org = getattr(request, "org", None)
+    org = get_org(request)
+    if org is None:
+        return False
     from apps.tenancy.models import Membership
     m = Membership.objects.filter(org=org, user=request.user).first()
     return m and m.role in ("owner","admin")
 
 # ── Plans ────────────────────────────────────────────────────────────────
+
+def assert_plans_seeded():
+    """Fail loudly when the billing catalog is empty.
+
+    An unseeded plans table previously surfaced as a 404 ("Plan starter not
+    found") on every subscribe call, which looks like a user error and hides a
+    missing `manage.py seed_billing` step. 503 + an explicit message points at
+    the real cause instead.
+    """
+    if not Plan.objects.filter(active=True).exists():
+        from rest_framework.response import Response as _R
+        from rest_framework import status as _s
+        return _R(
+            {
+                "detail": "Billing plans are not configured. "
+                          "Run `python manage.py seed_billing` to create them.",
+                "code": "BILLING_NOT_SEEDED",
+            },
+            status=_s.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    return None
+
 
 class PlanListView(generics.ListAPIView):
     serializer_class = PlanSerializer
@@ -51,6 +70,12 @@ class PlanListView(generics.ListAPIView):
         if self.request.query_params.get("public") == "true":
             qs = qs.filter(public=True)
         return qs
+
+    def list(self, request, *args, **kwargs):
+        unseeded = assert_plans_seeded()
+        if unseeded is not None:
+            return unseeded
+        return super().list(request, *args, **kwargs)
 
 
 class PlanDetailView(generics.RetrieveAPIView):
@@ -165,6 +190,12 @@ class SubscribeView(APIView):
                 sub.current_period_start = now
                 # monthly
                 sub.current_period_end = now + timezone.timedelta(days=30)
+                # Clear stale trial dates when leaving a trial (e.g. downgrade
+                # to free). Leaving them set made a non-trialing subscription
+                # report a trial_end it was no longer in.
+                if plan.trial_days == 0:
+                    sub.trial_start = None
+                    sub.trial_end = None
             sub.mrr_minor = int(plan.price * 100) - discount_minor
             sub.cancel_at_period_end = False
             sub.save()

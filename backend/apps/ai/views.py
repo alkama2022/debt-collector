@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import AIConversation, PromiseToPay
 from .serializers import AIConversationSerializer, PromiseToPaySerializer
+from apps.tenancy.org import get_org
 
 class AIConversationListCreate(generics.ListCreateAPIView):
     serializer_class = AIConversationSerializer
@@ -12,16 +13,13 @@ class AIConversationListCreate(generics.ListCreateAPIView):
     filterset_fields = ["state", "channel", "customer", "invoice"]
 
     def get_queryset(self):
-        org = getattr(self.request, "org", None)
+        org = get_org(self.request)
         if org is None:
             return AIConversation.objects.none()
         return AIConversation.objects.for_org(org).prefetch_related("messages")
 
     def perform_create(self, serializer):
-        org = getattr(self.request, "org", None)
-        if org is None and hasattr(self.request, "user") and self.request.user.is_authenticated:
-            m = self.request.user.memberships.select_related("org").first()
-            org = m.org if m else None
+        org = get_org(self.request)
         if org:
             from apps.subscriptions.entitlements import check_feature_access
             from rest_framework.exceptions import PermissionDenied
@@ -47,7 +45,7 @@ class AIConversationDetail(generics.RetrieveUpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        org = getattr(self.request, "org", None)
+        org = get_org(self.request)
         if org is None:
             return AIConversation.objects.none()
         return AIConversation.objects.for_org(org)
@@ -57,18 +55,13 @@ class PromiseListCreate(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        org = getattr(self.request, "org", None)
+        org = get_org(self.request)
         if org is None:
             return PromiseToPay.objects.none()
         return PromiseToPay.objects.filter(org=org)
 
     def perform_create(self, serializer):
-        # fallback to user's org if middleware not set for JWT
-        org = getattr(self.request, "org", None)
-        if org is None and hasattr(self.request, "user") and self.request.user.is_authenticated:
-            m = self.request.user.memberships.first()
-            if m:
-                org = m.org
+        org = require_org(self.request)
         serializer.save(org=org)
 
 
@@ -94,7 +87,7 @@ class DetectLanguageView(APIView):
             try:
                 from apps.ai.models import AIConversation
                 from apps.customers.models import Customer
-                org = getattr(request, "org", None) or getattr(request.user.memberships.first(), "org", None)
+                org = get_org(request)
                 cust = Customer.objects.for_org(org).filter(pk=request.data.get("customer_id")).first()
                 AIConversation.objects.create(org=org, customer=cust, state=AIConversation.State.ESCALATED, channel=AIConversation.Channel.WHATSAPP)
             except Exception:
@@ -125,7 +118,7 @@ class GenerateResponseView(APIView):
         if not target_lang and customer_id:
             from apps.customers.models import Customer
             try:
-                org = getattr(request, "org", None) or request.user.memberships.first().org
+                org = get_org(request)
                 cust = Customer.objects.for_org(org).get(pk=customer_id)
                 target_lang = cust.preferred_language.code if cust.preferred_language else "en"
             except Exception:
@@ -234,7 +227,7 @@ class LanguageMetricsView(APIView):
         from apps.payments.models import Payment
         from apps.comms.models import CommunicationEvent
         from django.db.models import Count
-        org = getattr(request, "org", None)
+        org = get_org(request)
         active = Language.objects.filter(active=True).order_by("code")
         results = []
         for lang in active:
@@ -266,11 +259,7 @@ class LanguageHistoryView(APIView):
 
     def get(self, request, pk=None):
         from apps.languages.models import CustomerLanguageHistory
-        org = getattr(request, "org", None)
-        if org is None and hasattr(request, "user") and request.user.is_authenticated:
-            m = request.user.memberships.first()
-            if m:
-                org = m.org
+        org = get_org(request)
         qs = CustomerLanguageHistory.objects.filter(org=org).order_by("-created_at")[:50]
         if pk:
             qs = qs.filter(customer_id=pk)
