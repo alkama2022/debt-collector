@@ -6,6 +6,18 @@ from rest_framework.response import Response
 from .models import CommunicationEvent, CommunicationPreference, ReminderRule
 from .serializers import CommunicationEventSerializer, CommunicationPreferenceSerializer, ReminderRuleSerializer
 
+
+def _org(request):
+    """Resolve the active org for both session and JWT requests.
+
+    CurrentOrgMiddleware sets request.org = None for JWT requests (DRF has not
+    authenticated yet at middleware time), so bare getattr(request, "org")
+    returns None and writes fail the org_id NOT NULL constraint.
+    """
+    from apps.tenancy.middleware import resolve_org
+    return resolve_org(request)
+
+
 class CommunicationEventList(generics.ListCreateAPIView):
     serializer_class = CommunicationEventSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -14,16 +26,16 @@ class CommunicationEventList(generics.ListCreateAPIView):
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        org = getattr(self.request, "org", None)
+        org = _org(self.request)
         if org is None:
             return CommunicationEvent.objects.none()
         return CommunicationEvent.objects.for_org(org)
 
     def perform_create(self, serializer):
-        org = getattr(self.request, "org", None)
-        if org is None and hasattr(self.request.user, "memberships"):
-            m = self.request.user.memberships.select_related("org").first()
-            org = m.org if m else None
+        org = _org(self.request)
+        if org is None:
+            from rest_framework.exceptions import NotFound
+            raise NotFound("Organization context required.")
         # Feature gate: check WHATSAPP/SMS/EMAIL entitlement + metered limit
         channel = (serializer.validated_data.get("channel") or "").upper()
         if org and channel in ("WHATSAPP", "SMS", "EMAIL"):
@@ -55,7 +67,7 @@ class CommunicationEventDetail(generics.RetrieveAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        org = getattr(self.request, "org", None)
+        org = _org(self.request)
         if org is None:
             return CommunicationEvent.objects.none()
         return CommunicationEvent.objects.for_org(org)
@@ -65,13 +77,17 @@ class CommunicationPreferenceList(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        org = getattr(self.request, "org", None)
+        org = _org(self.request)
         if org is None:
             return CommunicationPreference.objects.none()
         return CommunicationPreference.objects.filter(org=org)
 
     def perform_create(self, serializer):
-        serializer.save(org=getattr(self.request, "org", None))
+        org = _org(self.request)
+        if org is None:
+            from rest_framework.exceptions import NotFound
+            raise NotFound("Organization context required.")
+        serializer.save(org=org)
 
 
 class ReminderRuleListCreate(generics.ListCreateAPIView):
@@ -79,13 +95,16 @@ class ReminderRuleListCreate(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        org = getattr(self.request, "org", None)
+        org = _org(self.request)
         if org is None:
             return ReminderRule.objects.none()
         return ReminderRule.objects.for_org(org).order_by("-created_at")
 
     def perform_create(self, serializer):
-        org = getattr(self.request, "org", None)
+        org = _org(self.request)
+        if org is None:
+            from rest_framework.exceptions import NotFound
+            raise NotFound("Organization context required.")
         serializer.save(org=org)
 
 
@@ -94,7 +113,7 @@ class ReminderRuleDetail(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        org = getattr(self.request, "org", None)
+        org = _org(self.request)
         if org is None:
             return ReminderRule.objects.none()
         return ReminderRule.objects.for_org(org)
@@ -104,10 +123,7 @@ class ReminderRuleRunView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk=None):
-        org = getattr(request, "org", None)
-        if org is None and hasattr(request.user, "memberships"):
-            m = request.user.memberships.select_related("org").first()
-            org = m.org if m else None
+        org = _org(request)
         if org is None:
             return Response({"success": False, "message": "Organization required"}, status=401)
         # If pk provided, run single rule; else run all enabled

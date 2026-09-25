@@ -9,5 +9,3 @@ vite.config.js
 vite.config.d.ts
 _gen*.mjs
 _gen.mjs
-
-backend

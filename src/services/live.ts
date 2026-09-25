@@ -399,48 +399,57 @@ export type DashboardStats = {
 }
 
 export async function fetchDashboardStats(): Promise<DashboardStats> {
-  // Fetch all in parallel
-  const [invoicesRes, paymentsRes, customersRes] = await Promise.all([
-    listInvoices(),
-    listPayments(),
-    listCustomers(),
-  ])
+  // Use the backend /reports/summary endpoint so aggregates cover ALL records,
+  // not just the first page (PAGE_SIZE=20) returned by list endpoints.
+  type SummaryResponse = {
+    success: boolean
+    data: {
+      range_days: number
+      kpis: {
+        total_outstanding: number
+        total_overdue: number
+        total_collected: number
+        collection_rate: number
+        open_invoices: number
+        overdue_invoices: number
+        total_customers: number
+        total_payments: number
+      }
+      cash_flow: { date: string; collected: number; outstanding: number }[]
+    }
+  }
 
-  const invoices = invoicesRes.results
-  const payments = paymentsRes.results
-  const customers = customersRes.results
+  const res = await apiFetch<SummaryResponse>("/reports/summary?range=30")
+  const { kpis, cash_flow } = res.data
 
-  const now = new Date()
-  const todayStr = now.toISOString().slice(0, 10)
-  const thisMonthPrefix = now.toISOString().slice(0, 7) // "YYYY-MM"
+  // Derive "due today" from the cash_flow series (today's outstanding entry)
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayEntry = cash_flow.find(e => e.date === todayStr)
+  const dueToday = todayEntry ? todayEntry.outstanding : 0
 
-  const totalOutstanding = invoices
-    .filter(i => i.status !== "paid" && i.status !== "cancelled")
-    .reduce((a, i) => a + Number(i.balance), 0)
-
-  const dueToday = invoices
-    .filter(i => i.due_date === todayStr && i.status !== "paid")
-    .reduce((a, i) => a + Number(i.balance), 0)
-
-  const overdue = invoices
-    .filter(i => i.status === "overdue")
-    .reduce((a, i) => a + Number(i.balance), 0)
-
-  const collectedThisMonth = payments
-    .filter(p => p.status === "successful" && p.created_at.startsWith(thisMonthPrefix))
-    .reduce((a, p) => a + Number(p.amount), 0)
-
-  // Build a 7-day cashflow chart from payments data
-  const cashflow = buildCashflow(invoices, payments, 7)
+  // Map the last 7 cash_flow entries to the chart shape the Dashboard expects:
+  // { name: "12 Sep", expected: <outstanding that day>, collected, overdue: 0 }
+  // The backend doesn't break "expected" vs "overdue" in the daily series, so
+  // we use outstanding as expected. Individual overdue per day isn't tracked server-side.
+  const cashflow = cash_flow.slice(-7).map(e => {
+    const d = new Date(e.date)
+    const label = d.toLocaleDateString("en-NG", { day: "numeric", month: "short" })
+    return {
+      name: label,
+      expected: e.outstanding,
+      collected: e.collected,
+      overdue: 0,
+    }
+  })
 
   return {
-    totalOutstanding,
+    totalOutstanding: kpis.total_outstanding,
     dueToday,
-    overdue,
-    collectedThisMonth,
-    invoiceCount: invoices.length,
-    customerCount: customers.length,
-    paymentCount: payments.length,
+    overdue: kpis.total_overdue,
+    collectedThisMonth: kpis.total_collected,
+    invoiceCount: kpis.open_invoices,
+    customerCount: kpis.total_customers,
+    paymentCount: kpis.total_payments,
     cashflow,
   }
 }

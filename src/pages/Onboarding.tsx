@@ -38,19 +38,34 @@ export default function Onboarding() {
   const finish = async () => {
     setSaving(true)
     try {
-      // Step 1 — Create organisation
-      const org = await apiFetch<{ id: string; name: string; slug: string; currency: string; country: string }>(
-        "/organizations",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            name: form.name || `${user?.name || "My"} Business`,
-            country: COUNTRY_MAP[form.country] || "NG",
-            currency: form.currency,
-            timezone: "Africa/Lagos",
-          }),
-        }
-      )
+      // Determine whether the user already has an org (created during signup).
+      // If yes: PATCH it with the onboarding details instead of creating a second one.
+      const existingOrgId = user?.org?.id || localStorage.getItem("cn_org_id")
+
+      let org: { id: string; name: string; slug: string; currency: string; country: string }
+
+      const orgPayload = {
+        name: form.name || `${user?.name || "My"} Business`,
+        country: COUNTRY_MAP[form.country] || "NG",
+        currency: form.currency,
+        timezone: "Africa/Lagos",
+      }
+
+      if (existingOrgId) {
+        // PATCH the existing org — no second org created
+        const res = await apiFetch<{ success: boolean; data: typeof org }>(
+          `/organizations/${existingOrgId}`,
+          { method: "PATCH", body: JSON.stringify(orgPayload) }
+        )
+        org = res.data
+      } else {
+        // No org yet (edge case) — create one
+        const res = await apiFetch<{ success: boolean; data: typeof org }>(
+          "/organizations",
+          { method: "POST", body: JSON.stringify(orgPayload) }
+        )
+        org = res.data
+      }
 
       // Persist org id so all subsequent requests use it
       localStorage.setItem("cn_org_id", org.id)

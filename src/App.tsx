@@ -25,6 +25,7 @@ const BillingInvoices = lazy(() => import("./pages/BillingInvoices"));
 const AdminBilling = lazy(() => import("./pages/AdminBilling"));
 const BillingSuccess = lazy(() => import("./pages/BillingSuccess"));
 const Campaigns = lazy(() => import("./pages/Campaigns"));
+const Organizations = lazy(() => import("./pages/Organizations"));
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -83,6 +84,7 @@ export default function App() {
           <Route path="/billing/invoices" element={<BillingInvoices />} />
           <Route path="/admin/billing" element={<AdminBilling />} />
           <Route path="/campaigns" element={<Campaigns />} />
+          <Route path="/organizations" element={<Organizations />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

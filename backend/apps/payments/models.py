@@ -18,14 +18,22 @@ class Payment(TenantModel):
         FLUTTERWAVE = "flutterwave", "Flutterwave"
         MANUAL = "manual", "Manual"
 
+    MANUAL_METHODS = [
+        "cash", "bank_transfer", "card", "pos", "cheque", "mobile_money", "other"
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     invoice = models.ForeignKey("invoices.Invoice", on_delete=models.SET_NULL, null=True, blank=True, related_name="payments")
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     currency = models.CharField(max_length=3, default="NGN")
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    # provider = payment gateway / channel (paystack, flutterwave, manual)
     provider = models.CharField(max_length=16, choices=Provider.choices, default=Provider.MANUAL)
+    # method = human-readable label for manual payments (Cash, Bank transfer, POS, etc.)
+    method = models.CharField(max_length=64, blank=True, default="")
     provider_ref = models.CharField(max_length=128, null=True, blank=True, unique=True)
     idempotency_key = models.CharField(max_length=128, unique=True, null=True, blank=True)
+    notes = models.TextField(blank=True, default="")
     verified_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

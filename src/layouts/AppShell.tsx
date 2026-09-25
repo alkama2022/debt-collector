@@ -23,6 +23,7 @@ const nav=[
   {to:"/reports", label:"Reports", icon:BarChart3},
   {to:"/campaigns", label:"Campaigns", icon:Megaphone},
   {to:"/languages", label:"Languages", icon:Languages},
+  {to:"/organizations", label:"Organisations", icon:Building2},
   {to:"/pricing", label:"Pricing", icon:Tags},
   {to:"/billing", label:"Billing", icon:Wallet},
   {to:"/billing/usage", label:"Usage", icon:Gauge},
