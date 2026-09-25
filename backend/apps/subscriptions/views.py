@@ -132,6 +132,9 @@ class SubscribeView(APIView):
         try:
             plan = Plan.objects.get(slug=plan_slug, active=True)
         except Plan.DoesNotExist:
+            unseeded = assert_plans_seeded()
+            if unseeded is not None:
+                return unseeded
             return Response({"detail": f"Plan {plan_slug} not found"}, status=404)
         sub = get_subscription_for_org(org)
         # coupon
