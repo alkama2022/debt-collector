@@ -150,9 +150,13 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="http://localhost:5173,http://localhost:3000", cast=Csv())
+CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000", cast=Csv())
 CORS_ALLOW_CREDENTIALS = True
-CORS_URLS_REGEX = r"^/api/.*$"
+CORS_URLS_REGEX = r"^/(api|health).*$"
+# In DEBUG, allow any localhost/127.0.0.1 origin to avoid dev confusion (browser may use 127.0.0.1 vs localhost)
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = False  # keep explicit list, but also allow regex via middleware
+    CORS_ALLOWED_ORIGIN_REGEXES = [r"^http://(localhost|127\.0\.0\.1)(:\d+)?$"]
 
 # Frontend doesn't send trailing slashes — disable Django's redirect
 APPEND_SLASH = False
