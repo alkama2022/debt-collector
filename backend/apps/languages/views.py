@@ -5,6 +5,104 @@ from .models import Language, OrganizationLanguageSettings
 from .serializers import LanguageSerializer, OrganizationLanguageSettingsSerializer
 
 
+class LanguageDetectView(APIView):
+    """
+    POST /api/v1/languages/detect
+    Body: { "text": "..." }
+    Returns detected language code, confidence, and alternatives.
+    Delegates to the AI app's router so the logic lives in one place.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        text = (request.data.get("text") or "").strip()
+        if not text:
+            return Response({"detail": "text is required"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            from apps.languages.router import MultilingualLanguageRouter
+            router = MultilingualLanguageRouter()
+            code, conf = router.detect_language(text)
+        except Exception:
+            code, conf = "en", 0.5
+
+        try:
+            lang = Language.objects.get(code=code)
+            name, native_name = lang.name, lang.native_name
+        except Language.DoesNotExist:
+            name = native_name = code
+
+        return Response({
+            "detected_language": code,
+            "language_name": name,
+            "native_name": native_name,
+            "confidence": round(float(conf), 2),
+            "alternatives": [],
+        })
+
+
+class LanguageResolveView(APIView):
+    """
+    GET /api/v1/languages/resolve?customer_id=<uuid>&text=<str>
+    Resolves which language should be used for a response given a customer and/or text.
+    Priority: customer preferred → auto-detect from text → org fallback → 'en'.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        customer_id = request.query_params.get("customer_id")
+        text = (request.query_params.get("text") or "").strip()
+
+        org = getattr(request, "org", None)
+        if org is None and hasattr(request, "user") and request.user.is_authenticated:
+            m = request.user.memberships.select_related("org").first()
+            if m:
+                org = m.org
+
+        # 1. Customer preferred language
+        if customer_id:
+            try:
+                from apps.customers.models import Customer
+                cust = Customer.objects.for_org(org).get(pk=customer_id)
+                if cust.preferred_language:
+                    return Response({
+                        "response_language": cust.preferred_language.code,
+                        "source": "customer_preferred",
+                    })
+            except Exception:
+                pass
+
+        # 2. Auto-detect from text
+        if text:
+            try:
+                from apps.languages.router import MultilingualLanguageRouter
+                router = MultilingualLanguageRouter()
+                code, conf = router.detect_language(text)
+                if conf >= 0.6:
+                    return Response({
+                        "response_language": code,
+                        "source": "auto_detected",
+                        "detected": code,
+                        "confidence": round(float(conf), 2),
+                    })
+            except Exception:
+                pass
+
+        # 3. Org fallback language
+        if org:
+            try:
+                settings_obj = OrganizationLanguageSettings.objects.filter(org=org).first()
+                if settings_obj and settings_obj.fallback_language:
+                    return Response({
+                        "response_language": settings_obj.fallback_language.code,
+                        "source": "fallback",
+                    })
+            except Exception:
+                pass
+
+        # 4. Hard default
+        return Response({"response_language": "en", "source": "fallback"})
+
+
 class LanguageListView(generics.ListAPIView):
     """GET /api/v1/languages — list all active languages, or all if ?all=true for admin."""
     serializer_class = LanguageSerializer

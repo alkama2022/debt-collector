@@ -185,6 +185,7 @@ class ReportsSummaryView(APIView):
                     "open_invoices": inv_qs.filter(balance__gt=0).count(),
                     "overdue_invoices": inv_qs.filter(balance__gt=0, status="overdue").count(),
                     "total_customers": Customer.objects.for_org(org).filter(deleted_at__isnull=True).count(),
+                    "total_payments": pay_qs.filter(status="successful", created_at__gte=since).count(),
                 },
                 "cash_flow": cash_flow,
                 "aging": aging,
