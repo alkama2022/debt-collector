@@ -7,6 +7,7 @@ from django.utils import timezone
 import uuid
 from .models import Customer
 from .serializers import CustomerSerializer
+from apps.tenancy.org import get_org
 
 class CustomerListCreate(generics.ListCreateAPIView):
     serializer_class = CustomerSerializer

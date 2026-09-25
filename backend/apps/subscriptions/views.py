@@ -13,6 +13,7 @@ from .serializers import SubscriptionSerializer, PlanSerializer, BillingInvoiceS
 from .entitlements import get_subscription_for_org, get_plan_for_subscription, get_entitlements, check_feature_access, check_limit
 from .providers import get_provider
 from .usage import get_current_usage, get_all_usage, commit_or_create_usage, calculate_billable_minutes
+from apps.tenancy.org import get_org
 
 
 def _require_org(request):

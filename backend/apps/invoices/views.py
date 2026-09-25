@@ -10,6 +10,7 @@ from rest_framework import status as http_status
 import uuid
 from .models import Invoice
 from .serializers import InvoiceSerializer
+from apps.tenancy.org import get_org
 
 class InvoiceListCreate(generics.ListCreateAPIView):
     serializer_class = InvoiceSerializer
