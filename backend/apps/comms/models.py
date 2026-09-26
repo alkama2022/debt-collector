@@ -48,6 +48,22 @@ class CommunicationEvent(TenantModel):
     sent_at = models.DateTimeField(null=True, blank=True)
     cost_minor = models.IntegerField(null=True, blank=True, help_text="Cost in kobo")
     error_code = models.CharField(max_length=64, blank=True, default="")
+
+    # §21 — the language actually used for this message. Recorded so staff can
+    # always prove which language a customer was contacted in, and so §24 can
+    # attribute response rates per language.
+    language = models.CharField(
+        max_length=10, blank=True, default="",
+        help_text="Language the message was rendered in (empty = resolved at send time)",
+    )
+    language_source = models.CharField(
+        max_length=24, blank=True, default="",
+        help_text="event_override | customer_preferred | org_default | fallback",
+    )
+    body_snapshot = models.TextField(
+        blank=True, default="",
+        help_text="Exact text sent - preserved so a dispute can be reconstructed",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     objects = CommsManager()
@@ -57,6 +73,7 @@ class CommunicationEvent(TenantModel):
         indexes = [
             models.Index(fields=["org", "channel"]),
             models.Index(fields=["org", "status"]),
+            models.Index(fields=["org", "language"]),
         ]
 
     def __str__(self):

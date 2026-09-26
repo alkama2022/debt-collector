@@ -200,7 +200,7 @@ export default function Pricing() {
                 value={coupon}
                 onChange={e => { setCoupon(e.target.value.toUpperCase()); setCouponState("idle"); setCouponMsg("") }}
                 onKeyDown={e => e.key === "Enter" && handleValidateCoupon()}
-                className="h-7 px-2 text-sm bg-transparent outline-none placeholder:text-slate-400 flex-1"
+                className="input-zoom-safe h-9 px-2 text-sm bg-transparent outline-none placeholder:text-slate-400 flex-1 min-w-0"
               />
               {coupon && (
                 <button onClick={handleValidateCoupon} disabled={couponState === "checking"} className="text-xs font-medium px-3 py-1.5 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 disabled:opacity-50">

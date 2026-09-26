@@ -242,8 +242,8 @@ export default function Reminders() {
           </div>
 
           <Card className="overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="scroll-x">
+              <table className="w-full text-sm min-w-[720px]">
                 <thead className="bg-slate-50 dark:bg-slate-700/50 text-xs text-slate-500 dark:text-slate-400">
                   <tr>
                     <th className="text-left p-3">Customer</th>

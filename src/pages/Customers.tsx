@@ -109,7 +109,7 @@ export default function Customers() {
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="Search by name, ID, phone or language"
-            className="w-full h-11 pl-9 pr-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="input-zoom-safe w-full h-11 pl-9 pr-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
         </div>
         <div className="flex gap-1">
@@ -126,8 +126,8 @@ export default function Customers() {
         />
       ) : (
         <>
-          {/* Mobile cards */}
-          <div className="grid md:hidden gap-3">
+          {/* Card list — phones and tablets */}
+          <div className="grid lg:hidden gap-3">
             {list.map(c => (
               <Card key={c.id} className="p-4">
                 <div className="flex justify-between">
@@ -170,8 +170,8 @@ export default function Customers() {
           </div>
 
           {/* Desktop table */}
-          <Card className="hidden md:block overflow-hidden">
-            <div className="overflow-x-auto">
+          <Card className="hidden lg:block overflow-hidden">
+            <div className="scroll-x">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 dark:bg-slate-700/50 text-xs text-slate-500 dark:text-slate-400">
                   <tr>

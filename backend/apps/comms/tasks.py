@@ -73,6 +73,12 @@ def dispatch_queued_events(self):
 
         try:
             provider = get_provider(event.channel)
+
+            # §21/§34 — resolve and persist the language actually used, plus
+            # the exact body, *before* handing off to the provider. Recording
+            # after the send would race with retries and lose the evidence.
+            _record_language(event, provider)
+
             result = provider.send(event)
 
             if result.success:
@@ -109,6 +115,40 @@ def dispatch_queued_events(self):
 
     logger.info("[dispatch_queued_events] Batch done: sent=%d, failed=%d", sent, failed)
     return {"sent": sent, "failed": failed}
+
+
+def _record_language(event, provider) -> None:
+    """
+    §21/§34 — persist which language a message went out in, and the exact text.
+
+    Without this there is no way to answer "which language did we contact this
+    customer in?", which the language dashboard and any dispute both require.
+    """
+    from apps.comms.models import CommunicationEvent
+
+    try:
+        lang = provider._resolve_language(event) if hasattr(provider, "_resolve_language") else "en"
+    except Exception:
+        lang = event.language or "en"
+
+    source = "event_override" if event.language and event.language != "auto" else ""
+    if not source:
+        customer = getattr(event, "customer", None)
+        pref = getattr(customer, "preferred_language", None) if customer else None
+        source = "customer_preferred" if pref is not None else "org_default"
+
+    body = ""
+    try:
+        body = provider._render_template(event) if hasattr(provider, "_render_template") else ""
+    except Exception:
+        body = ""
+
+    CommunicationEvent.objects.filter(id=event.id).update(
+        language=lang, language_source=source, body_snapshot=body[:4000]
+    )
+    # Keep the in-memory instance consistent for anything downstream.
+    event.language = lang
+    event.language_source = source
 
 
 def _is_opted_out(event) -> bool:

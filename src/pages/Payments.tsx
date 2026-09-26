@@ -308,19 +308,22 @@ export default function Payments() {
           value={q}
           onChange={e => setQ(e.target.value)}
           placeholder="Search reference, customer, invoice…"
-          className="flex-1 min-w-[180px] h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white dark:bg-slate-800"
+          aria-label="Search payments"
+          className="input-zoom-safe flex-1 min-w-full sm:min-w-[180px] h-11 sm:h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white dark:bg-slate-800"
         />
         <select
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
-          className="h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500"
+          aria-label="Filter by status"
+          className="input-zoom-safe h-11 sm:h-10 flex-1 sm:flex-none px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500"
         >
           {STATUS_FILTERS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
         <select
           value={methodFilter}
           onChange={e => setMethodFilter(e.target.value)}
-          className="h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500"
+          aria-label="Filter by method"
+          className="input-zoom-safe h-11 sm:h-10 flex-1 sm:flex-none px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500"
         >
           <option value="">All methods</option>
           {availableMethods.map(m => <option key={m} value={m}>{m}</option>)}
@@ -328,7 +331,7 @@ export default function Payments() {
         {(q || statusFilter || methodFilter) && (
           <button
             onClick={() => { setQ(""); setStatusFilter(""); setMethodFilter("") }}
-            className="h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-sm text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5"
+            className="h-11 sm:h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-sm text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5"
           >
             <X className="w-3.5 h-3.5" /> Clear
           </button>

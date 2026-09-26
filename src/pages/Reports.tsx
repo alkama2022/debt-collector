@@ -285,8 +285,8 @@ export default function Reports() {
           {/* Top Debtors */}
           <Card className="p-5">
             <h3 className="font-semibold mb-4">Top Debtors</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="scroll-x">
+              <table className="w-full text-sm min-w-[720px]">
                 <thead>
                   <tr className="text-xs text-slate-500 dark:text-slate-400 border-b dark:border-slate-700">
                     <th className="text-left pb-2">Customer</th>

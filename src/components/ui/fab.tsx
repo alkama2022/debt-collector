@@ -59,8 +59,9 @@ export function FAB() {
 
   return (
     <>
-      {/* FAB container */}
-      <div ref={ref} className="fixed bottom-20 right-4 lg:bottom-8 lg:right-8 z-40 flex flex-col items-end gap-3">
+      {/* FAB container — clears the phone tab bar + home indicator, then
+          drops to a normal corner offset once the sidebar layout takes over */}
+      <div ref={ref} className="cn-fab fixed right-4 z-40 flex flex-col items-end gap-3">
         {/* Action items — appear above the main button */}
         {open && ACTIONS.map((a, i) => (
           <div
@@ -68,12 +69,12 @@ export function FAB() {
             className="flex items-center gap-3 animate-in slide-in-from-bottom-2"
             style={{ animationDelay: `${i * 40}ms`, animationDuration: "180ms", animationFillMode: "both" }}
           >
-            <span className="text-sm font-medium bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl shadow-sm whitespace-nowrap">
+            <span className="hidden sm:inline text-sm font-medium bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl shadow-sm whitespace-nowrap">
               {a.label}
             </span>
             <button
               onClick={() => handleAction(a.key)}
-              className={`w-12 h-12 rounded-full ${a.color} text-white flex items-center justify-center shadow-lg hover:shadow-xl hover:scale-110 transition-all`}
+              className={`w-12 h-12 shrink-0 rounded-full ${a.color} text-white flex items-center justify-center shadow-lg hover:shadow-xl hover:scale-110 transition-all`}
               aria-label={a.label}
             >
               <a.icon className="w-5 h-5" />

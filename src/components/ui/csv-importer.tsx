@@ -245,7 +245,7 @@ export function CsvImporter({ open, onClose, onImport }: Props) {
                 onChange={e => setPasteText(e.target.value)}
                 placeholder={"Name\tPhone\tEmail\nMusa Ibrahim\t08031234567\tmusa@example.com\nFatima Ali\t08039876543"}
                 rows={7}
-                className="w-full p-3 rounded-xl border border-slate-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+                className="input-zoom-safe w-full p-3 rounded-xl border border-slate-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
                 autoFocus
               />
               <Button
@@ -288,7 +288,7 @@ export function CsvImporter({ open, onClose, onImport }: Props) {
                   <select
                     value={mapping[h] ?? "ignore"}
                     onChange={e => setMapping(m => ({ ...m, [h]: e.target.value as ColumnKey }))}
-                    className="h-9 px-2 rounded-xl border border-slate-200 text-xs font-medium bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none min-w-[180px]"
+                    className="input-zoom-safe h-11 sm:h-9 px-2 rounded-xl border border-slate-200 text-sm sm:text-xs font-medium bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none min-w-full sm:min-w-[180px]"
                   >
                     {(Object.keys(COLUMN_LABELS) as ColumnKey[]).map(k => (
                       <option key={k} value={k}>{COLUMN_LABELS[k]}</option>

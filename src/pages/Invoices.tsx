@@ -74,12 +74,12 @@ export default function Invoices() {
           value={q}
           onChange={e => setQ(e.target.value)}
           placeholder="Search invoice or customer"
-          className="flex-1 h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className="input-zoom-safe flex-1 min-w-full sm:min-w-[160px] h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
         <select
           value={status}
           onChange={e => setStatus(e.target.value)}
-          className="h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
+          className="input-zoom-safe h-11 flex-1 sm:flex-none px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
         >
           <option value="all">All status</option>
           <option value="draft">Draft</option>
@@ -96,8 +96,8 @@ export default function Invoices() {
         <div className="text-center p-8 text-sm text-slate-500">No invoices match this filter.</div>
       ) : (
         <>
-          {/* Mobile cards */}
-          <div className="grid md:hidden gap-3">
+          {/* Card list — phones and tablets. 8 table columns need real width. */}
+          <div className="grid lg:hidden gap-3">
             {filtered.map(inv => (
               <Card key={inv.id} className="p-4">
                 <div className="flex justify-between">
@@ -119,8 +119,8 @@ export default function Invoices() {
           </div>
 
           {/* Desktop table */}
-          <Card className="hidden md:block overflow-hidden">
-            <div className="overflow-x-auto">
+          <Card className="hidden lg:block overflow-hidden">
+            <div className="scroll-x">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 dark:bg-slate-700/50 text-xs text-slate-500 dark:text-slate-400">
                   <tr>

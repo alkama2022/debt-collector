@@ -90,9 +90,9 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] flex transition-colors">
-      <div className="flex-1 max-w-md mx-auto px-6 py-12">
-        <div className="flex items-center justify-between">
+    <div className="min-h-screen-dvh bg-[#f8fafc] dark:bg-[#020617] flex transition-colors">
+      <div className="flex-1 max-w-md mx-auto w-full px-5 sm:px-6 py-8 sm:py-12">
+        <div className="flex items-center justify-between gap-3">
           <Link
             to="/"
             className="inline-flex items-center gap-2 font-semibold dark:text-white"

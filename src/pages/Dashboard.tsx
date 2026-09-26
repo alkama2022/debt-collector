@@ -307,7 +307,7 @@ export default function Dashboard() {
 
   if (loadingStats) return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[1, 2, 3, 4].map(i => <StatSkeleton key={i} />)}
       </div>
       <Skeleton className="h-64 w-full" />
@@ -345,7 +345,7 @@ export default function Dashboard() {
       {invoices.length > 0 && <CollectionScore rate={collectionScore} />}
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="p-4">
           <div className="flex items-center gap-2 text-xs text-slate-500 uppercase font-medium">
             <TrendingDown className="w-3.5 h-3.5" /> Outstanding

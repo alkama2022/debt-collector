@@ -166,10 +166,10 @@ export default function Onboarding() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col">
-      <div className="max-w-2xl mx-auto w-full px-6 py-8">
+    <div className="min-h-screen-dvh bg-[#f8fafc] flex flex-col">
+      <div className="max-w-2xl mx-auto w-full px-5 sm:px-6 py-6 sm:py-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <Link to="/" className="font-semibold flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-brand-600 text-white flex items-center justify-center text-xs font-bold">CN</div>
             CollectNaija

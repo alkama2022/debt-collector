@@ -4,6 +4,11 @@ export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
+      screens: {
+        // Small phones (iPhone SE / older Androids) need to break before `sm`
+        // so dense headers and card grids are not squeezed.
+        xs: "400px",
+      },
       colors: {
         brand: {
           50: "#eef4ff",
@@ -26,6 +31,7 @@ export default {
         sans: ["Inter", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
       },
       borderRadius: { md: "10px", lg: "14px", xl: "18px" },
+      maxWidth: { content: "1600px" },
       boxShadow: {
         soft: "0 1px 3px rgba(15,23,42,0.08), 0 8px 24px rgba(15,23,42,0.06)",
         card: "0 1px 2px rgba(15,23,42,0.06), 0 4px 16px rgba(15,23,42,0.05)",

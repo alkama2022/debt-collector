@@ -70,9 +70,9 @@ export default function PayInvoice() {
     }
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-sm text-slate-500 dark:text-slate-400">{verifyNote || "Loading invoice…"}</div>
+  if (loading) return <div className="min-h-screen-dvh flex items-center justify-center text-sm text-slate-500 dark:text-slate-400">{verifyNote || "Loading invoice…"}</div>
   if (success) return (
-    <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center p-6">
+    <div className="min-h-screen-dvh bg-[#f8fafc] flex items-center justify-center p-6">
       <ConfettiBurst trigger={1} />
       <Card className="max-w-md w-full p-8 text-center">
         <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-2xl animate-bounce">✓</div>
@@ -83,21 +83,21 @@ export default function PayInvoice() {
       </Card>
     </div>
   )
-  if (error) return <div className="min-h-screen flex items-center justify-center p-6"><Card className="p-6 max-w-md w-full text-center"><p className="text-sm text-red-600 dark:text-red-400">{error}</p><Link to="/" className="mt-4 inline-block text-sm text-brand-600">Go home</Link></Card></div>
+  if (error) return <div className="min-h-screen-dvh flex items-center justify-center p-6"><Card className="p-6 max-w-md w-full text-center"><p className="text-sm text-red-600 dark:text-red-400">{error}</p><Link to="/" className="mt-4 inline-block text-sm text-brand-600">Go home</Link></Card></div>
 
   const balance = Number(inv?.balance || 0)
   const currency = inv?.currency || "NGN"
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col">
-      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2"><div className="w-8 h-8 rounded-xl bg-brand-600 text-white flex items-center justify-center text-xs font-bold">CN</div><span className="font-semibold">CollectNaija — Secure Pay</span></div>
-          <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300">Paystack secured</span>
+    <div className="min-h-screen-dvh bg-[#f8fafc] flex flex-col">
+      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 pt-safe">
+        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0"><div className="w-8 h-8 shrink-0 rounded-xl bg-brand-600 text-white flex items-center justify-center text-xs font-bold">CN</div><span className="font-semibold truncate">CollectNaija — Secure Pay</span></div>
+          <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 whitespace-nowrap shrink-0">Paystack secured</span>
         </div>
       </header>
-      <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
-        <Card className="p-6 md:p-8">
+      <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-6 sm:py-8 pb-safe">
+        <Card className="p-5 sm:p-6 md:p-8">
           <div className="flex flex-wrap justify-between gap-3">
             <div>
               <h1 className="text-xl font-bold font-mono">{inv?.invoice_number}</h1>

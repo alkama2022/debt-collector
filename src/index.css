@@ -2,17 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE FOUNDATION
+   Device tiers used across the app:
+     phone   <  768px  — bottom tab bar + drawer, single column, card lists
+     tablet  768–1023 — icon-rail sidebar, 2-col grids, card lists
+     laptop  ≥ 1024   — full 260px sidebar, multi-col grids, tables
+     wide    ≥ 1536   — wider content well, 4-col grids
+   ══════════════════════════════════════════════════════════════════════════ */
+
 * { -webkit-font-smoothing: antialiased; }
-html { scroll-behavior: smooth; }
+
+/* Stop iOS from inflating text in landscape / text-zoom inflation */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
 :focus-visible { outline: 2px solid #0f4c81; outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 .scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
 .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
 .dark .scrollbar-thin::-webkit-scrollbar-thumb { background: #334155; }
+.scrollbar-thin { scrollbar-width: thin; }
 
 html { transition: background-color 0.25s ease, color 0.25s ease; }
 body { @apply bg-[#f8fafc] text-slate-900 dark:bg-[#020617] dark:text-slate-100 antialiased; transition: background-color 0.3s ease, color 0.3s ease; }
 ::selection { @apply bg-brand-600 text-white; }
+
+/* Remove the grey flash on tap in mobile Safari/Chrome */
+a, button, [role="button"], label, summary {
+  -webkit-tap-highlight-color: transparent;
+}
 
 .dark { color-scheme: dark; }
 
@@ -21,3 +51,115 @@ body { @apply bg-[#f8fafc] text-slate-900 dark:bg-[#020617] dark:text-slate-100 
 
 /* Smooth card transitions */
 .dark * { border-color: rgba(51,65,85,0.7); }
+
+/* ── Viewport height ───────────────────────────────────────────────────────
+   100vh is the *largest* viewport on mobile (browser chrome expanded), which
+   makes sticky/fixed panels taller than what the user can actually see.
+   dvh tracks the real visible height. Keep 100vh as the fallback for old
+   browsers, then override with the dvh-capable one. */
+.min-h-screen-dvh { min-height: 100vh; min-height: 100dvh; }
+
+/* ── Safe-area insets (notched phones / home indicator) ──────────────────── */
+:root {
+  --cn-safe-top: env(safe-area-inset-top, 0px);
+  --cn-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --cn-safe-left: env(safe-area-inset-left, 0px);
+  --cn-safe-right: env(safe-area-inset-right, 0px);
+  --cn-header-h: 60px;
+  --cn-tabbar-h: 60px;
+}
+
+@media (min-width: 768px) { :root { --cn-header-h: 64px; } }
+
+/* Header: 60/64px of content, grown by the notch inset so the sticky
+   header still clears the status bar on iPhone. */
+.h-cn-header {
+  height: calc(var(--cn-header-h) + var(--cn-safe-top));
+  padding-top: var(--cn-safe-top);
+}
+.top-cn-header { top: calc(var(--cn-header-h) + var(--cn-safe-top)); }
+/* Remaining viewport for the sticky sidebar column. */
+.h-cn-viewport {
+  height: calc(100vh - var(--cn-header-h) - var(--cn-safe-top));
+  height: calc(100dvh - var(--cn-header-h) - var(--cn-safe-top));
+}
+
+.pt-safe     { padding-top: var(--cn-safe-top); }
+.pb-safe     { padding-bottom: var(--cn-safe-bottom); }
+/* Fixed bottom bar pinned above the iOS home indicator. */
+.bottom-safe {
+  bottom: 0;
+  padding-bottom: var(--cn-safe-bottom);
+}
+/* Clearance so page content is never trapped under a fixed bar. */
+.pb-tabbar   { padding-bottom: calc(var(--cn-tabbar-h) + var(--cn-safe-bottom) + 1rem); }
+
+/* Floating quick-add button. Phones must clear the bottom tab bar and the
+   home indicator; tablet+ has no tab bar, so it tucks into the corner. */
+.cn-fab {
+  bottom: calc(var(--cn-tabbar-h) + var(--cn-safe-bottom) + 1rem);
+  right: 1rem;
+}
+@media (min-width: 768px) {
+  .cn-fab { bottom: 1.5rem; right: 1.5rem; }
+}
+@media (min-width: 1024px) {
+  .cn-fab { bottom: 2rem; right: 2rem; }
+}
+
+/* ── Touch targets ─────────────────────────────────────────────────────────
+   WCAG 2.2 AA (2.5.8) asks for 24px; platform guidance (Material, iOS HIG)
+   asks for 44px. Icon-only controls drawn at w-7/w-8/w-9 are 28–36px, which
+   is too small for a thumb. This grows the real box (rather than a
+   pseudo-element overlay, which makes adjacent targets ambiguous) and only
+   applies on coarse pointers, so mouse and trackpad users see no change.
+   `.tap-wide` opts a text-bearing control out of the width floor. */
+@media (pointer: coarse) {
+  button[aria-label]:not(.tap-ignore),
+  a[role="button"] { min-height: 44px; min-width: 44px; }
+  button.tap-wide { min-width: 0; }
+}
+
+/* ── iOS input zoom guard ──────────────────────────────────────────────────
+   Safari on iPhone *and* iPad zooms the viewport when a focused form control
+   renders under 16px, which leaves the page scrolled sideways after blur.
+   The trigger is touch hardware, not viewport width, so this is scoped to
+   coarse pointers. Add `.input-zoom-safe` to any control that opts out of
+   its inherited `text-*` size. */
+@media (pointer: coarse) {
+  .input-zoom-safe { font-size: 16px !important; }
+}
+
+/* ── Horizontally scrollable regions (tables, tab strips) ───────────────────
+   Momentum scrolling, contained overscroll, and a visible scrollbar so it is
+   obvious that a wide table continues off-screen. */
+.scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+.scroll-x::-webkit-scrollbar { height: 8px; }
+.scroll-x::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+.dark .scroll-x::-webkit-scrollbar-thumb { background: #334155; }
+
+/* ── Layout guards ───────────────────────────────────────────────────────────
+   Long unbroken strings (emails, invoice refs, URLs) must never widen a flex
+   or grid track and push the page into horizontal scroll. */
+.break-anywhere {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Prevent a whole page from scrolling sideways if a child overshoots */
+#root { overflow-x: clip; }
+
+/* ── Coarse-pointer form ergonomics ────────────────────────────────────────
+   Checkboxes/radios get a bigger visual + hit area on touch. */
+@media (pointer: coarse) {
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}

@@ -8,6 +8,28 @@ import { Button } from "../components/ui/button"
 import { useToast } from "../components/ui/toast"
 import { Skeleton } from "../components/ui/skeleton"
 import { Bot, MessageSquare, AlertCircle, CheckCircle, Clock, TrendingUp, Zap } from "lucide-react"
+import { ConversationTranscript } from "../components/ConversationTranscript"
+import type { ConversationDetail } from "../components/ConversationTranscript"
+import { LanguageBadge } from "../components/ui/badge"
+
+type Message = {
+  id: string
+  role: "user" | "assistant" | "system" | "tool"
+  content: string
+  created_at: string
+  // §20 / §27 per-message language trace
+  language_code?: string | null
+  detected_language_code?: string | null
+  secondary_language_code?: string | null
+  language_confidence?: string | number | null
+  is_code_switched?: boolean
+  was_language_switch?: boolean
+  escalated?: boolean
+  // §33 staff rendering — never overwrites `content`
+  staff_translation?: string | null
+  staff_translation_language?: string | null
+  staff_translation_confidence?: string | number | null
+}
 
 type Conversation = {
   id: string
@@ -17,6 +39,13 @@ type Conversation = {
   invoice: string | null
   created_at: string
   updated_at: string
+  // §20 language memory
+  conversation_language_code?: string | null
+  preferred_language_code?: string | null
+  language_source?: string
+  language_switch_count?: number
+  code_switch_count?: number
+  messages?: Message[]
 }
 
 type Promise = {
@@ -61,6 +90,9 @@ export default function AI() {
   const { push } = useToast()
   const [tab, setTab] = useState<"overview" | "conversations" | "promises" | "compose">("overview")
   const [convs, setConvs] = useState<Conversation[]>([])
+  // §32/§33 — which conversation's transcript is open, and whether we are
+  // showing the customer's original words or a staff translation.
+  const [openConv, setOpenConv] = useState<ConversationDetail | null>(null)
   const [promises, setPromises] = useState<Promise[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -171,7 +203,7 @@ export default function AI() {
 
   if (loading) return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 w-full" />)}
       </div>
       <Skeleton className="h-64 w-full" />
@@ -214,7 +246,7 @@ export default function AI() {
       {/* Overview */}
       {tab === "overview" && stats && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Card className="p-4">
               <div className="flex items-center gap-2 text-xs text-slate-500 uppercase font-medium"><MessageSquare className="w-4 h-4" /> Total Conversations</div>
               <div className="text-2xl font-bold mt-2">{stats.total}</div>
@@ -295,13 +327,14 @@ export default function AI() {
           </div>
 
           <Card className="overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="scroll-x">
+              <table className="w-full text-sm min-w-[720px]">
                 <thead className="bg-slate-50 text-xs text-slate-500">
                   <tr>
                     <th className="text-left p-3">State</th>
                     <th className="text-left">Channel</th>
                     <th className="text-left">Customer</th>
+                    <th className="text-left">Language</th>
                     <th className="text-left">Updated</th>
                     <th className="text-right">Actions</th>
                   </tr>
@@ -321,24 +354,51 @@ export default function AI() {
                       </td>
                       <td className="text-xs capitalize">{conv.channel}</td>
                       <td className="text-xs text-slate-600 font-mono">{conv.customer ? conv.customer.slice(0, 8) + "…" : "—"}</td>
+                      <td className="text-xs">
+                        {conv.conversation_language_code ? (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <LanguageBadge code={conv.conversation_language_code} />
+                            {!!conv.code_switch_count && (
+                              <span className="text-[10px] text-amber-600 dark:text-amber-400">
+                                +{conv.code_switch_count} mixed
+                              </span>
+                            )}
+                            {!!conv.language_switch_count && (
+                              <span className="text-[10px] text-slate-400">
+                                {conv.language_switch_count} switch
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
                       <td className="text-xs text-slate-500">{new Date(conv.updated_at).toLocaleDateString()}</td>
                       <td className="pr-3 text-right">
-                        {!["RESOLVED", "COLLECTION_CLOSED", "HUMAN_HANDOFF"].includes(conv.state) && (
+                        <div className="inline-flex items-center gap-1.5 justify-end flex-wrap">
                           <button
-                            onClick={() => escalateConv(conv.id)}
-                            className="text-xs px-3 py-1.5 rounded-full border border-red-200 text-red-600 hover:bg-red-50"
+                            onClick={() => setOpenConv(conv)}
+                            className="text-xs px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 inline-flex items-center gap-1"
                           >
-                            Escalate
+                            <MessageSquare className="w-3 h-3" /> View
                           </button>
-                        )}
-                        {conv.state === "HUMAN_HANDOFF" && (
-                          <span className="text-xs text-red-600 font-medium">Needs staff</span>
-                        )}
+                          {!["RESOLVED", "COLLECTION_CLOSED", "HUMAN_HANDOFF"].includes(conv.state) && (
+                            <button
+                              onClick={() => escalateConv(conv.id)}
+                              className="text-xs px-3 py-1.5 rounded-full border border-red-200 text-red-600 hover:bg-red-50"
+                            >
+                              Escalate
+                            </button>
+                          )}
+                          {conv.state === "HUMAN_HANDOFF" && (
+                            <span className="text-xs text-red-600 font-medium">Needs staff</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
                   {filteredConvs.length === 0 && (
-                    <tr><td colSpan={5} className="p-8 text-center text-sm text-slate-500">No conversations match this filter.</td></tr>
+                    <tr><td colSpan={6} className="p-8 text-center text-sm text-slate-500">No conversations match this filter.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -347,6 +407,8 @@ export default function AI() {
         </div>
       )}
 
+      <ConversationTranscript conversation={openConv} onClose={() => setOpenConv(null)} />
+
       {/* Promises */}
       {tab === "promises" && (
         <Card className="overflow-hidden">
@@ -354,8 +416,8 @@ export default function AI() {
             <h3 className="font-semibold">Promises to Pay</h3>
             <p className="text-xs text-slate-500 mt-1">Recorded when AI detects a customer commitment to pay.</p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="scroll-x">
+            <table className="w-full text-sm min-w-[640px]">
               <thead className="bg-slate-50 text-xs text-slate-500">
                 <tr>
                   <th className="text-left p-3">Customer</th>
@@ -411,7 +473,7 @@ export default function AI() {
               <select
                 value={composeCustomerId}
                 onChange={e => setComposeCustomerId(e.target.value)}
-                className="mt-1 w-full h-11 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="input-zoom-safe mt-1 w-full h-11 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               >
                 <option value="">Select customer…</option>
                 {customers.map(c => (
@@ -426,7 +488,7 @@ export default function AI() {
                 <select
                   value={composeIntent}
                   onChange={e => setComposeIntent(e.target.value)}
-                  className="mt-1 w-full h-11 px-3 rounded-xl border border-slate-200 text-sm"
+                  className="input-zoom-safe mt-1 w-full h-11 px-3 rounded-xl border border-slate-200 text-sm"
                 >
                   <option value="reminder">Payment reminder</option>
                   <option value="overdue">Overdue notice</option>
@@ -441,7 +503,7 @@ export default function AI() {
                 <select
                   value={composeLang}
                   onChange={e => setComposeLang(e.target.value)}
-                  className="mt-1 w-full h-11 px-3 rounded-xl border border-slate-200 text-sm"
+                  className="input-zoom-safe mt-1 w-full h-11 px-3 rounded-xl border border-slate-200 text-sm"
                 >
                   <option value="en">English</option>
                   <option value="pcm">Nigerian Pidgin</option>
@@ -458,7 +520,7 @@ export default function AI() {
                 value={composeMessage}
                 onChange={e => setComposeMessage(e.target.value)}
                 placeholder="e.g. 'I will pay on Friday'"
-                className="mt-1 w-full h-20 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="input-zoom-safe mt-1 w-full h-20 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>
 

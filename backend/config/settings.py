@@ -224,6 +224,13 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.collections.tasks.enqueue_due_reminders",
         "schedule": 300.0,
     },
+    # S34 retention: strip expired voice recordings and verbatim transcripts
+    # from AI communication audits. Nightly, shortly after midnight so it never
+    # competes with the 2-minute dispatch loop.
+    "purge-expired-ai-audit-content": {
+        "task": "apps.audit.tasks.purge_expired_ai_audit_content",
+        "schedule": crontab(hour=1, minute=17),
+    },
 }
 
 # ── Test overrides ────────────────────────────────────────────────────────────

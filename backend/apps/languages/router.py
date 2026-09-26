@@ -30,8 +30,24 @@ IGBO_KEYWORDS = [
 PIDGIN_KEYWORDS = [
     "i go pay", "i go", "how far", "abeg", "o de pay", "wey", "dey", "na wa",
     "you don", "i dey", "no dey", "make i", "wetin", "shey", "pidgin",
-    "una", "oya", "japa",
+    "una", "oya", "japa", "wallahi", "gidi", "sharp sharp", "small small",
 ]
+
+# Language -> keyword table, shared with the code-switch segmenter (§27).
+# Exposed as a dict so code_switch.detect_code_switch can reuse it without
+# importing the router (which would be circular).
+LANGUAGE_KEYWORDS = {
+    "ha": HAUSA_KEYWORDS,
+    "yo": YORUBA_KEYWORDS,
+    "ig": IGBO_KEYWORDS,
+    "pcm": PIDGIN_KEYWORDS,
+    "en": [
+        "hello", "hi", "dear", "please", "good morning", "good afternoon",
+        "good evening", "the", "i will", "thank", "thanks", "balance",
+        "invoice", "payment", "pay", "paid", "debt", "due", "reminder",
+        "kindly", "regards", "sir", "madam",
+    ],
+}
 
 
 def _normalize(text: str) -> str:
@@ -133,6 +149,68 @@ class MultilingualLanguageRouter:
         return code, conf, _score_language(text)
 
     # ------------------------------------------------------------------
+    # Code-switching (§27)
+    # ------------------------------------------------------------------
+    def detect_code_switch(self, text: str, default_language: str = "en"):
+        """
+        Segment-level attribution for mixed-language messages.
+
+        Returns a CodeSwitchResult exposing .primary, .secondary,
+        .confidence, .is_code_switched and per-clause .segments.
+        """
+        from .code_switch import detect_code_switch as _detect
+        return _detect(text or "", LANGUAGE_KEYWORDS, default_language=default_language)
+
+    def resolve_code_switched_language(
+        self, text: str, customer, business_settings=None, conversation_language: str = None
+    ) -> dict:
+        """
+        Decide how to reply to a possibly mixed-language message.
+
+        §27: a customer who mixes languages must not be treated as speaking an
+        unknown language. We answer in whichever of the two languages is the
+        better target, preferring:
+
+          1. the customer's configured preferred language, if it is one of the
+             languages actually present in the message (they are addressing us
+             in it, even if they code-switch);
+          2. the dominant language of the message itself;
+          3. the conversation's established language, for continuity;
+          4. the business fallback.
+
+        Returns a dict rather than a bare code so callers can log why.
+        """
+        result = self.detect_code_switch(text, default_language=conversation_language or "en")
+        preferred = self.get_customer_language(customer)
+        present = [c for c in (result.primary, result.secondary) if c]
+
+        if preferred in present:
+            chosen, reason = preferred, "customer_preferred_present"
+        elif result.is_code_switched:
+            chosen, reason = result.primary, "dominant_of_code_switch"
+        elif conversation_language and result.confidence < MEDIUM_CONFIDENCE:
+            chosen, reason = conversation_language, "conversation_continuity"
+        elif conversation_language and result.primary == "en" and conversation_language != "en":
+            # Short or ambiguous reply in a language the customer is not
+            # fluent in: stay in the established conversation language.
+            chosen, reason = conversation_language, "conversation_continuity"
+        else:
+            chosen, reason = result.primary, "dominant_language"
+
+        return {
+            "language": chosen,
+            "reason": reason,
+            "is_code_switched": result.is_code_switched,
+            "primary": result.primary,
+            "secondary": result.secondary,
+            "detection_confidence": result.confidence,
+            "segments": [
+                {"text": s.text, "language": s.language, "score": s.score}
+                for s in result.segments
+            ],
+        }
+
+    # ------------------------------------------------------------------
     # Registry helpers
     # ------------------------------------------------------------------
     def get_customer_language(self, customer) -> str:
@@ -205,7 +283,14 @@ class MultilingualLanguageRouter:
     # ------------------------------------------------------------------
     # Resolution — core context-aware logic
     # ------------------------------------------------------------------
-    def resolve_response_language(self, customer, detected: Optional[str], business_settings=None, confidence: Optional[Decimal] = None) -> str:
+    def resolve_response_language(
+        self,
+        customer,
+        detected: Optional[str],
+        business_settings=None,
+        confidence: Optional[Decimal] = None,
+        conversation_language: Optional[str] = None,
+    ) -> str:
         """
         Decide response language given:
         - customer: Customer instance or None
@@ -217,14 +302,37 @@ class MultilingualLanguageRouter:
           customer_preferred -> always customer language
           business_fallback -> business dashboard language
           auto_detect -> if confidence high use detected, else customer language, else fallback
+
+        §8: when a customer switches language mid-conversation we should follow
+        them. A switch is only honoured once the detection is confident, so a
+        one-off ambiguous line cannot hijack an established conversation.
+        §20: `conversation_language` carries the established language so we do
+        not re-detect from scratch on every message.
         """
         # Normalize
         detected = (detected or "").strip() or None
         conf = Decimal(str(confidence)) if confidence is not None else None
 
-        # If business_settings provided, respect mode
+        # §8 — an explicit, confident switch overrides the sticky preference.
+        # Only meaningful in auto_detect mode; other modes are owner policy and
+        # must not be overridden by the model.
         if business_settings is not None:
             mode = getattr(business_settings, "ai_communication_mode", None)
+        else:
+            mode = "customer_preferred"
+
+        if (
+            mode == "auto_detect"
+            and conversation_language
+            and detected
+            and detected != conversation_language
+            and conf is not None
+            and conf >= MEDIUM_CONFIDENCE
+        ):
+            return detected
+
+        # If business_settings provided, respect mode
+        if business_settings is not None:
             fallback = getattr(business_settings, "fallback_language_id", None) or getattr(business_settings, "fallback_language", None)
             if hasattr(fallback, "code"):
                 fallback = fallback.code
@@ -353,17 +461,39 @@ class MultilingualLanguageRouter:
     # Voice / Template / Validation (context-aware stubs)
     # ------------------------------------------------------------------
     def select_voice(self, language_code: str, org=None) -> str:
-        """Select TTS voice id for language. Stub mapping."""
-        mapping = {
-            "en": "en-NG-Neural",
-            "ha": "ha-NG-Neural",
-            "yo": "yo-NG-Neural",
-            "ig": "ig-NG-Neural",
-            "pcm": "pcm-NG-Neural",
-            "ff": "ff-NG-Neural",
-            "kr": "kr-NG-Neural",
-        }
-        return mapping.get(language_code, "en-NG-Neural")
+        """
+        Select the TTS voice id for a language.
+
+        Backwards-compatible string return. Prefer `resolve_voice_profile` for
+        new code, which returns rate/tone/formality alongside the voice id (§22).
+        """
+        from .voice_personas import resolve_voice
+        return resolve_voice(language_code, org=org)["voice_id"]
+
+    def resolve_voice_profile(self, language_code: str, org=None) -> dict:
+        """
+        Full voice configuration for a language (§22): voice id, rate, tone,
+        formality and pronunciation rules, plus whether it is actually usable.
+
+        A language without a validated native voice returns `usable: False` so
+        the caller can escalate (§23) instead of speaking that language with an
+        English voice.
+        """
+        from .voice_personas import resolve_voice
+        profile = resolve_voice(language_code, org=org)
+        # If the org registry says TTS is not supported for this language, we
+        # must not pretend the voice is usable.
+        if profile.get("language") == (language_code or "").strip().lower():
+            try:
+                from .models import Language
+                row = Language.objects.filter(code=profile["language"]).first()
+                if row is not None and not row.text_to_speech_supported:
+                    profile["usable"] = False
+                    profile["reason"] = "language_not_tts_validated"
+            except Exception:
+                # Registry unavailable (e.g. unit tests) — trust the persona.
+                pass
+        return profile
 
     def select_template(self, language_code: str, template_name: str = "reminder") -> str:
         """Select template key for language. Returns template_name:lang."""
@@ -377,7 +507,11 @@ class MultilingualLanguageRouter:
     def validate_language_output(self, text: str, expected_language: str) -> Tuple[bool, str]:
         """
         Validate generated text matches expected language (heuristic).
-        Returns (is_valid, reason).
+
+        §27: a reply that mixes languages is not a failure. Nigerian customers
+        mix English and Pidgin constantly, and a slightly mixed message reads
+        as natural rather than wrong — so a code-switched reply is accepted as
+        long as the expected language is genuinely dominant.
         """
         if not text or not expected_language:
             return False, "missing_input"
@@ -390,6 +524,14 @@ class MultilingualLanguageRouter:
         # For pidgin, allow en mix
         if expected_language == "pcm" and detected in ("en", "pcm"):
             return True, "pcm_en_mix_allowed"
+        # §27 — mixed output is acceptable when the expected language is
+        # actually present in the message.
+        try:
+            cs = self.detect_code_switch(text, default_language=expected_language)
+            if expected_language in (cs.primary, cs.secondary):
+                return True, f"code_switched_with_{expected_language}"
+        except Exception:
+            pass
         return False, f"expected {expected_language} but detected {detected} conf {conf}"
 
     # ------------------------------------------------------------------

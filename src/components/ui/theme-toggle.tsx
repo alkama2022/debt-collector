@@ -50,7 +50,7 @@ export function ThemeSelect() {
     <select
       value={theme}
       onChange={(e) => setTheme(e.target.value as any)}
-      className="h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium"
+      className="input-zoom-safe h-11 sm:h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium"
     >
       <option value="light">☀️ Light</option>
       <option value="dark">🌙 Dark</option>

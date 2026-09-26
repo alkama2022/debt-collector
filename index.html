@@ -2,7 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover enables env(safe-area-inset-*) for notched phones.
+         No maximum-scale/user-scalable: pinch-zoom stays available for a11y. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>CollectNaija — Collect what you're owed. Stay in control.</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,6 +13,12 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#0f4c81" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#020617" media="(prefers-color-scheme: dark)" />
+    <!-- Standalone/immersive on iOS: app opens without browser chrome -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="CollectNaija" />
+    <meta name="format-detection" content="telephone=no" />
     <script>
       (function(){
         try{

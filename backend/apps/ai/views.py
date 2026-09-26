@@ -76,12 +76,36 @@ class DetectLanguageView(APIView):
         from apps.languages.models import Language
         router = MultilingualLanguageRouter()
         code, conf = router.detect_language(text)
-        try:
-            lang = Language.objects.get(code=code)
-            name, native = lang.name, lang.native_name
-        except Language.DoesNotExist:
-            name = native = code
+
+        def _name(c):
+            try:
+                lang = Language.objects.get(code=c)
+                return lang.name, lang.native_name
+            except Exception:
+                return c, c
+
+        name, native = _name(code)
         escalate = conf < 0.6
+
+        # §27 — a mixed-language message must not be reported as "unknown".
+        # Surface the second language so the caller can reply knowingly.
+        cs = router.detect_code_switch(
+            text, default_language=code,
+        )
+        secondary_code = cs.secondary if cs.is_code_switched else None
+        if cs.is_code_switched:
+            escalate = False  # we understand it, even if it is mixed
+            conf = cs.confidence
+
+        # §20 — the caller's established conversation language, when supplied,
+        # keeps the AI from re-detecting on every message.
+        conversation_language = request.data.get("conversation_language") or None
+        resolution = None
+        if conversation_language or cs.is_code_switched:
+            resolution = router.resolve_code_switched_language(
+                text, customer=None, conversation_language=conversation_language,
+            )
+
         # §23 Human Escalation — low confidence → create escalated conversation stub for audit
         if escalate and request.data.get("customer_id"):
             try:
@@ -92,7 +116,7 @@ class DetectLanguageView(APIView):
                 AIConversation.objects.create(org=org, customer=cust, state=AIConversation.State.ESCALATED, channel=AIConversation.Channel.WHATSAPP)
             except Exception:
                 pass
-        return Response({
+        payload = {
             "text": text[:500],
             "detected_language": code,
             "language_name": name,
@@ -101,8 +125,19 @@ class DetectLanguageView(APIView):
             "should_ask_preference": escalate,
             "should_escalate": escalate,
             "escalation_reason": "low_confidence" if escalate else None,
-            "suggested_prompt": "Which language would you prefer us to use when communicating with you?" if escalate else None
-        })
+            "suggested_prompt": "Which language would you prefer us to use when communicating with you?" if escalate else None,
+            # §27
+            "is_code_switched": bool(cs.is_code_switched),
+            "secondary_language": secondary_code,
+            "secondary_language_name": _name(secondary_code)[1] if secondary_code else None,
+            "language_segments": [
+                {"text": s.text, "language": s.language, "score": s.score}
+                for s in cs.segments
+            ][:20],
+            # §20
+            "resolution": resolution,
+        }
+        return Response(payload)
 
 
 class GenerateResponseView(APIView):
@@ -207,19 +242,169 @@ def _call_llm_for_intent(intent: str, lang: str, user_text: str, data: dict) -> 
 
 
 class VoiceLanguageView(APIView):
+    """§22 — resolve a language-appropriate voice, and refuse to fake one."""
+
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        customer_id = request.data.get("customer_id")
         from apps.languages.router import MultilingualLanguageRouter
         router = MultilingualLanguageRouter()
         code = request.data.get("language") or "en"
-        voice = router.select_voice(code)
-        return Response({"language": code, "voice": voice, "pipeline": ["STT","Language Detection","Conversation Understanding","Business Rules","Response Generation","Language Verification","TTS"]})
+        customer_id = request.data.get("customer_id")
+
+        # A customer's configured voice language wins over the request default.
+        if customer_id and not request.data.get("language"):
+            try:
+                from apps.customers.models import Customer
+                org = get_org(request)
+                cust = Customer.objects.for_org(org).filter(pk=customer_id).first()
+                if cust is not None:
+                    code = (
+                        cust.voice_language.code if cust.voice_language
+                        else (cust.preferred_language.code if cust.preferred_language else "en")
+                    )
+            except Exception:
+                pass
+
+        profile = router.resolve_voice_profile(code)
+        usable = bool(profile.get("usable"))
+        return Response({
+            "language": code,
+            "requested_language": code,
+            "voice": profile.get("voice_id"),
+            "usable": usable,
+            "is_fallback": profile.get("is_fallback", False),
+            "reason": profile.get("reason"),
+            "persona": {
+                "gender": profile.get("gender"),
+                "rate": profile.get("rate"),
+                "pitch": profile.get("pitch"),
+                "tone": profile.get("tone"),
+                "formality": profile.get("formality"),
+                "pronunciation": profile.get("pronunciation"),
+                "notes": profile.get("notes"),
+            },
+            # §23 — an unusable voice must escalate, not degrade to English.
+            "should_escalate": not usable,
+            "escalation_reason": None if usable else (
+                profile.get("reason") or "no_validated_voice"
+            ),
+            "pipeline": ["STT", "Language Detection", "Conversation Understanding",
+                         "Business Rules", "Response Generation", "Language Verification", "TTS"],
+        })
+
+
+class StaffTranslationView(APIView):
+    """
+    §33 — translate a customer message for business staff.
+
+    The original message is always returned untouched alongside any
+    translation. Staff must be able to see exactly what the customer said.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from apps.languages.staff_translation import build_staff_translation, needs_translation
+
+        text = request.data.get("text") or request.data.get("message") or ""
+        source = request.data.get("source_language") or request.data.get("language") or ""
+        target = request.data.get("target_language") or ""
+
+        if not text.strip():
+            return Response({"detail": "text required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Default the target to the business owner's dashboard language (§32).
+        if not target:
+            from apps.languages.router import MultilingualLanguageRouter
+            target = MultilingualLanguageRouter().get_business_language(get_org(request))
+
+        if not needs_translation(text, source, target):
+            return Response({
+                "original_text": text,
+                "original_language": source,
+                "translated_text": None,
+                "translated_language": target,
+                "is_reliable": True,
+                "provider": None,
+                "note": "No translation required — same language or no source language.",
+            })
+
+        # Translation is only available when an LLM provider is configured; we
+        # never fabricate one.
+        provider = getattr(__import__("django.conf", fromlist=["settings"]).settings,
+                           "AI_PROVIDER", "mock")
+        result = None
+        if provider in ("openai", "anthropic"):
+            try:
+                result = build_staff_translation(
+                    text, source, target,
+                    translate_fn=lambda t, s, d: _call_llm_translate(t, s, d),
+                )
+            except Exception:
+                result = None
+
+        if result is None:
+            return Response({
+                "original_text": text,
+                "original_language": source,
+                "translated_text": None,
+                "translated_language": target,
+                "is_reliable": False,
+                "provider": None,
+                "note": "No translation provider configured — showing the original only.",
+            }, status=status.HTTP_200_OK)
+
+        return Response(result.as_dict())
+
+
+def _call_llm_translate(text: str, source: str, target: str):
+    """Translate for staff eyes. Returns (text, confidence, provider)."""
+    from django.conf import settings as _s
+    import requests
+    from decimal import Decimal
+
+    prompt = (
+        f"Translate the following customer message from {source} to {target}. "
+        "Preserve every amount, date and reference exactly. Return only the "
+        "translation, no commentary.\n\nMessage:\n" + text[:1000]
+    )
+    if getattr(_s, "OPENAI_API_KEY", ""):
+        try:
+            r = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {_s.OPENAI_API_KEY}",
+                         "Content-Type": "application/json"},
+                json={"model": "gpt-4o-mini",
+                      "messages": [{"role": "user", "content": prompt}],
+                      "max_tokens": 400, "temperature": 0.2},
+                timeout=15,
+            )
+            j = r.json()
+            return j["choices"][0]["message"]["content"].strip(), Decimal("0.85"), "openai"
+        except Exception:
+            return None
+    if getattr(_s, "ANTHROPIC_API_KEY", ""):
+        try:
+            r = requests.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={"x-api-key": _s.ANTHROPIC_API_KEY,
+                         "anthropic-version": "2023-06-01",
+                         "Content-Type": "application/json"},
+                json={"model": "claude-3-haiku-20240307", "max_tokens": 400,
+                      "messages": [{"role": "user", "content": prompt}]},
+                timeout=15,
+            )
+            j = r.json()
+            return j["content"][0]["text"].strip(), Decimal("0.85"), "anthropic"
+        except Exception:
+            return None
+    return None
 
 
 class LanguageMetricsView(APIView):
     """GET /api/v1/ai/language-metrics — §24 Quality Monitoring per language."""
+
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
@@ -228,30 +413,116 @@ class LanguageMetricsView(APIView):
         from apps.comms.models import CommunicationEvent
         from django.db.models import Count
         org = get_org(request)
+
+        # §24 wants more than a response rate. These sources are optional so
+        # the endpoint still works before voice/audit data exists.
+        try:
+            from apps.audit.models import AICommunicationAudit
+            audits = AICommunicationAudit.objects.filter(org=org)
+            have_audits = True
+        except Exception:
+            audits = None
+            have_audits = False
+        try:
+            from apps.voice.models import VoiceCall, CallAttempt
+            calls = VoiceCall.objects.filter(org=org)
+            have_voice = True
+        except Exception:
+            calls = None
+            CallAttempt = None
+            have_voice = False
+
         active = Language.objects.filter(active=True).order_by("code")
         results = []
         for lang in active:
+            code = lang.code
             # customers with this preferred language
             from apps.customers.models import Customer
-            cust_count = Customer.objects.for_org(org).filter(preferred_language=lang).count() if org else 0
+            cust_count = (
+                Customer.objects.for_org(org).filter(preferred_language=lang).count()
+                if org else 0
+            )
             # payments from customers with this language (via invoice->customer)
-            payment_qs = Payment.objects.for_org(org).filter(invoice__customer__preferred_language=lang, status="successful") if org else Payment.objects.none()
+            payment_qs = (
+                Payment.objects.for_org(org).filter(
+                    invoice__customer__preferred_language=lang, status="successful"
+                ) if org else Payment.objects.none()
+            )
             paid_count = payment_qs.count()
-            # comm events queued/sent for this language inferred via customer
-            comm_total = CommunicationEvent.objects.for_org(org).filter(customer__preferred_language=lang).count() if org else 0
-            comm_sent = CommunicationEvent.objects.for_org(org).filter(customer__preferred_language=lang, status="sent").count() if org else 0
-            # escalation = low confidence histories
-            esc = CustomerLanguageHistory.objects.filter(org=org, to_lang=lang, reason__in=["auto_detect","detected_switch"]).count() if org else 0
-            # response rate heuristic: sent / total where total>0
-            response_rate = round((comm_sent / comm_total * 100) if comm_total else 0, 1)
+
+            # comm events, attributed by the language actually used (§21)
+            comm_qs = CommunicationEvent.objects.filter(language=code)
+            if org:
+                comm_qs = comm_qs.filter(org=org)
+            comm_total = comm_qs.count()
+            comm_sent = comm_qs.filter(status__in=["sent", "delivered"]).count()
+
+            # escalations: audited escalations in this language, plus legacy
+            # history rows that recorded a detected switch.
+            esc = 0
+            if have_audits:
+                esc += audits.filter(language_selected=code, escalated=True).count()
+            if org:
+                esc += CustomerLanguageHistory.objects.filter(
+                    org=org, to_lang=lang, reason__in=["auto_detect", "detected_switch"]
+                ).count()
+
+            corrected = 0
+            if have_audits:
+                corrected = audits.filter(language_selected=code, corrected=True).count()
+
+            # voice measures (§24)
+            voice_total = voice_completed = voice_stt_ok = 0
+            if have_voice:
+                voice_total = calls.filter(language_id=code).count()
+                voice_completed = calls.filter(
+                    language_id=code, status__in=["completed"]
+                ).count()
+                # An attempt with usable STT confidence counts as recognised.
+                voice_stt_ok = (
+                    CallAttempt.objects.filter(
+                        call__language_id=code, stt_confidence__gte=0.7
+                    ).count()
+                    if have_voice and CallAttempt is not None else 0
+                )
+
+            def pct(num, den):
+                return round((num / den * 100), 1) if den else 0.0
+
             results.append({
-                "code": lang.code, "name": lang.name, "native_name": lang.native_name,
-                "active": lang.active, "quality_status": lang.quality_status,
-                "customers": cust_count, "successful_payments": paid_count,
-                "comm_total": comm_total, "comm_sent": comm_sent,
-                "response_rate": response_rate, "escalations": esc,
+                "code": code,
+                "name": lang.name,
+                "native_name": lang.native_name,
+                "active": lang.active,
+                "quality_status": lang.quality_status,
+                "customers": cust_count,
+                # volume
+                "successful_payments": paid_count,
+                "comm_total": comm_total,
+                "comm_sent": comm_sent,
+                # §24 measures
+                "response_rate": pct(comm_sent, comm_total),
+                "payment_conversion_rate": pct(paid_count, cust_count),
+                "escalation_rate": pct(esc, max(comm_total, 1)),
+                "human_correction_rate": pct(corrected, max(comm_total, 1)),
+                "escalations": esc,
+                "voice_calls": voice_total,
+                "voice_completion_rate": pct(voice_completed, voice_total),
+                "voice_recognition_rate": pct(voice_stt_ok, voice_total),
             })
-        return Response({"metrics": results, "note": "Real values from DB — §24 dashboard should calculate actual response_rate, escalation_rate, voice accuracy from collected data."})
+
+        return Response({
+            "metrics": results,
+            "data_sources": {
+                "audit_trail": have_audits,
+                "voice": have_voice,
+            },
+            "note": (
+                "All values are computed from collected data. Response rate is "
+                "sent/total communications. Voice metrics are 0 until voice "
+                "calls record stt_confidence (S10)."
+            ),
+        })
 
 
 class LanguageHistoryView(APIView):

@@ -34,6 +34,11 @@ export type LanguageInfo = {
   native_name: string
   locale: string
   active: boolean
+  text_supported?: boolean
+  speech_to_text_supported?: boolean
+  text_to_speech_supported?: boolean
+  quality_status?: "draft" | "review" | "production"
+  version?: string
 }
 
 export type OrgLanguageSettings = {
@@ -44,16 +49,98 @@ export type OrgLanguageSettings = {
   supported_languages: string[]
 }
 
+/** One attributed clause of a mixed-language message (§27). */
+export type LanguageSegment = {
+  text: string
+  language: string
+  score: number
+}
+
 export type DetectResult = {
   detected_language: string
+  language_name?: string
+  native_name?: string
   confidence: number
   alternatives?: { code: string; confidence: number }[]
+  should_ask_preference?: boolean
+  should_escalate?: boolean
+  escalation_reason?: string | null
+  suggested_prompt?: string | null
+  /** §27 — the message mixed two languages. */
+  is_code_switched?: boolean
+  secondary_language?: string | null
+  secondary_language_name?: string | null
+  language_segments?: LanguageSegment[]
+  /** §20 — established conversation language keeps us from re-detecting. */
+  resolution?: {
+    language: string
+    reason: string
+    is_code_switched: boolean
+    primary: string
+    secondary: string | null
+    detection_confidence: number
+    segments: LanguageSegment[]
+  } | null
 }
 
 export type CustomerLanguage = {
   customer_id: string
   preferred_language: string
   history: { code: string; changed_at: string; changed_by?: string }[]
+}
+
+/** §22 — voice configuration. `usable: false` means escalate, do not speak. */
+export type VoiceLanguageResult = {
+  language: string
+  requested_language: string
+  voice: string
+  usable: boolean
+  is_fallback: boolean
+  reason?: string
+  persona?: {
+    gender: string
+    rate: string
+    pitch?: string
+    tone: string
+    formality: string
+    pronunciation: Record<string, string>
+    notes?: string
+  }
+  should_escalate: boolean
+  escalation_reason?: string | null
+  pipeline: string[]
+}
+
+/** §33 — the original is always returned untouched alongside any translation. */
+export type StaffTranslationResult = {
+  original_text: string
+  original_language: string
+  translated_text: string | null
+  translated_language: string
+  confidence?: number
+  is_reliable: boolean
+  provider: string | null
+  note?: string
+}
+
+export type LanguageMetric = {
+  code: string
+  name: string
+  native_name: string
+  active: boolean
+  quality_status: string
+  customers: number
+  successful_payments: number
+  comm_total: number
+  comm_sent: number
+  response_rate: number
+  payment_conversion_rate: number
+  escalation_rate: number
+  human_correction_rate: number
+  escalations: number
+  voice_calls: number
+  voice_completion_rate: number
+  voice_recognition_rate: number
 }
 
 export type ResolvedLanguage = {
@@ -479,11 +566,56 @@ export async function liveUpdateOrgLanguageSettings(payload: Partial<OrgLanguage
   })
 }
 
-export async function liveDetectLanguage(text: string): Promise<DetectResult> {
-  return apiFetch<DetectResult>("/languages/detect", {
+export async function liveDetectLanguage(text: string, conversationLanguage?: string): Promise<DetectResult> {
+  return apiFetch<DetectResult>("/ai/detect-language", {
+    method: "POST",
+    headers: languageHeaders(),
+    body: JSON.stringify({ text, conversation_language: conversationLanguage }),
+  })
+}
+
+/** §27 — code-switch check for a single message. */
+export async function liveDetectCodeSwitch(text: string): Promise<DetectResult> {
+  return apiFetch<DetectResult>("/ai/detect-language", {
     method: "POST",
     headers: languageHeaders(),
     body: JSON.stringify({ text }),
+  })
+}
+
+/** §22 — resolve a language-appropriate voice. Check `usable` before dialling. */
+export async function liveResolveVoiceLanguage(params: {
+  language?: string
+  customerId?: string
+} = {}): Promise<VoiceLanguageResult> {
+  return apiFetch<VoiceLanguageResult>("/ai/voice-language", {
+    method: "POST",
+    headers: languageHeaders(),
+    body: JSON.stringify(params),
+  })
+}
+
+/** §33 — staff-facing translation. The original is never overwritten. */
+export async function liveStaffTranslation(params: {
+  text: string
+  sourceLanguage: string
+  targetLanguage?: string
+}): Promise<StaffTranslationResult> {
+  return apiFetch<StaffTranslationResult>("/ai/staff-translation", {
+    method: "POST",
+    headers: languageHeaders(),
+    body: JSON.stringify({
+      text: params.text,
+      source_language: params.sourceLanguage,
+      target_language: params.targetLanguage,
+    }),
+  })
+}
+
+/** §24 — per-language quality/performance metrics. */
+export async function liveLanguageMetrics(): Promise<{ metrics: LanguageMetric[]; note?: string }> {
+  return apiFetch<{ metrics: LanguageMetric[]; note?: string }>("/ai/language-metrics", {
+    headers: languageHeaders(),
   })
 }
 

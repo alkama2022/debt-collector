@@ -3,19 +3,19 @@ import { Check, ArrowRight, Users, FileText, CreditCard, Bell, BarChart3, Shield
 import { ThemeToggle } from "../components/ui/theme-toggle"
 
 export default function Landing(){
-  return <div className="min-h-screen bg-white dark:bg-[#020617] text-slate-900 dark:text-slate-100 antialiased">
-    <header className="sticky top-0 z-20 bg-white/90 dark:bg-[#020617]/90 backdrop-blur-xl border-b border-slate-200/70 dark:border-slate-800">
-      <div className="max-w-6xl mx-auto px-4 h-[64px] flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">CN</div>
-          <span className="font-semibold tracking-tight">CollectNaija</span>
-          <span className="hidden md:inline text-xs text-slate-500 ml-2">The receivables workspace for ambitious businesses</span>
+  return <div className="min-h-screen-dvh bg-white dark:bg-[#020617] text-slate-900 dark:text-slate-100 antialiased">
+    <header className="sticky top-0 z-20 bg-white/90 dark:bg-[#020617]/90 backdrop-blur-xl border-b border-slate-200/70 dark:border-slate-800 pt-safe">
+      <div className="max-w-6xl mx-auto px-4 h-14 sm:h-16 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br from-brand-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">CN</div>
+          <span className="font-semibold tracking-tight hidden sm:inline truncate">CollectNaija</span>
+          <span className="hidden md:inline text-xs text-slate-500 ml-2 whitespace-nowrap">The receivables workspace for ambitious businesses</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <ThemeToggle />
           <Link to="/pricing" className="hidden sm:inline px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900">Pricing</Link>
-          <Link to="/login" className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800">Log in</Link>
-          <Link to="/signup" className="px-5 py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-medium hover:bg-black dark:hover:bg-slate-100 shadow-sm">Start free</Link>
+          <Link to="/login" className="px-3 sm:px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800">Log in</Link>
+          <Link to="/signup" className="px-3 sm:px-5 py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-medium hover:bg-black dark:hover:bg-slate-100 shadow-sm whitespace-nowrap">Start free</Link>
         </div>
       </div>
     </header>

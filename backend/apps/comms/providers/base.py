@@ -5,6 +5,7 @@ Every provider (Africa's Talking, Twilio, Email, Mock) implements this.
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from decimal import Decimal
 from typing import Optional
 import logging
 
@@ -51,28 +52,34 @@ class BaseProvider(ABC):
         """
         Render the event body using the invoice/customer template variables.
         Falls back to a sensible default message.
+
+        §14: the amount is passed as a *number only*. Currency is supplied
+        separately so the language template can localise it ("Naira"), rather
+        than hard-coding "NGN" inside the figure. The Decimal is formatted
+        directly — never via float() — so a balance can never be rounded.
         """
-        from apps.languages.templates import render_template, TERMINOLOGY
+        from apps.languages.templates import render_template
         invoice = event.invoice
         customer = event.customer
 
+        amount = self._format_amount(invoice.balance if invoice else None)
         ctx = {
             "customer_name": customer.name if customer else "Customer",
             "business_name": event.org.name if event.org else "Your business",
             "invoice_number": invoice.invoice_number if invoice else "N/A",
-            "amount_due": f"{invoice.currency} {float(invoice.balance):,.2f}" if invoice else "0.00",
-            "amount_owed": f"{invoice.currency} {float(invoice.balance):,.2f}" if invoice else "0.00",
+            "amount_due": amount,
+            "amount_owed": amount,
+            "currency": self._currency_label(invoice),
             "due_date": str(invoice.due_date) if invoice and invoice.due_date else "as agreed",
             "due_date_value": str(invoice.due_date) if invoice and invoice.due_date else "as agreed",
-            "outstanding_balance": f"{invoice.currency} {float(invoice.balance):,.2f}" if invoice else "0.00",
+            "outstanding_balance": amount,
             "pay_link": self._get_pay_link(event),
         }
 
-        # Determine language: customer preferred or org default
-        lang = "en"
-        if customer and getattr(customer, "preferred_language", None):
-            pref = customer.preferred_language
-            lang = pref.code if hasattr(pref, "code") else str(pref)
+        # §21 — language precedence: explicit override, then customer
+        # preference, then the org default. The resolved language is recorded
+        # on the event so we can always prove what was sent.
+        lang = self._resolve_language(event)
 
         # If a custom template is stored on the event, render its variables
         if event.template_id and "{{" in event.template_id:
@@ -93,6 +100,70 @@ class BaseProvider(ABC):
                 f"Invoice {ctx['invoice_number']} for {ctx['amount_due']} is due. "
                 f"Pay here: {ctx['pay_link']}"
             )
+
+    @staticmethod
+    def _format_amount(balance) -> str:
+        """
+        Format a money Decimal without going through float().
+
+        §14 — a balance of 85,000 must never render as 8,500 or 850,000.
+        float() on a Decimal can lose precision on large balances and always
+        adds a spurious ".00" for whole-naira amounts.
+        """
+        if balance is None:
+            return "0"
+        try:
+            # Whole amounts render without decimals; kobo amounts keep them.
+            value = (
+                balance.quantize(Decimal("1"))
+                if balance == balance.to_integral_value()
+                else balance
+            )
+        except Exception:
+            value = balance
+        return f"{value:,}"
+
+    def _currency_label(self, invoice) -> str:
+        """Human currency name for the message (never a raw ISO code)."""
+        code = str(getattr(invoice, "currency", None) or "NGN").upper()
+        names = {"NGN": "Naira", "USD": "Dollar", "GHS": "Cedi", "KES": "Shilling"}
+        return names.get(code, code)
+
+    def _resolve_language(self, event) -> str:
+        """
+        Decide the message language (§21 / §5 precedence).
+
+        Explicit event language > customer preference > org default > English.
+        """
+        # 1. Explicit override recorded on the event.
+        override = getattr(event, "language", "") or ""
+        if override and override != "auto":
+            return override
+
+        # 2. Customer's individual preference — the point of the product.
+        customer = getattr(event, "customer", None)
+        if customer is not None:
+            pref = getattr(customer, "preferred_language", None)
+            if pref is not None:
+                code = getattr(pref, "code", None) or str(pref)
+                if code:
+                    return code
+
+        # 3. Organisation default.
+        org = getattr(event, "org", None)
+        if org is not None:
+            try:
+                from apps.languages.models import OrganizationLanguageSettings
+                s = OrganizationLanguageSettings.objects.filter(
+                    org=org
+                ).select_related("default_customer_language").first()
+                if s and s.default_customer_language_id:
+                    return s.default_customer_language_id
+            except Exception:
+                pass
+
+        # 4. Safe fallback.
+        return "en"
 
     def _get_pay_link(self, event) -> str:
         from django.conf import settings

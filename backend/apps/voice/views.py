@@ -11,6 +11,54 @@ from apps.tenancy.org import get_org
 logger = logging.getLogger(__name__)
 
 
+# S9 step 2 — resolve which language to speak on a call.
+# Precedence: customer.voice_language -> customer.preferred_language ->
+# org default -> English.
+def _resolve_call_language(call, org):
+    """Return (language_code, language_source, voice_profile)."""
+    from apps.languages.router import MultilingualLanguageRouter
+
+    code, source = "en", "fallback"
+
+    customer = call.customer
+    if customer is not None:
+        if customer.voice_language_id:
+            code, source = customer.voice_language_id, "customer_voice_pref"
+        elif customer.preferred_language_id:
+            code, source = customer.preferred_language_id, "customer_pref"
+
+    if source == "fallback" and org is not None:
+        try:
+            from apps.languages.models import OrganizationLanguageSettings
+            s = OrganizationLanguageSettings.objects.filter(
+                org=org
+            ).select_related("default_customer_language").first()
+            if s and s.default_customer_language_id:
+                code, source = s.default_customer_language_id, "org_default"
+        except Exception:
+            pass
+
+    profile = MultilingualLanguageRouter().resolve_voice_profile(code)
+    return code, source, profile
+
+
+def _apply_language_to_call(call, code, source, profile):
+    """Record the language decision on the call before dialling."""
+    from apps.languages.models import Language
+
+    lang = Language.objects.filter(code=code).first()
+    fields = [
+        "language_source", "voice_id", "voice_usable", "updated_at",
+    ]
+    call.language_source = source
+    call.voice_id = profile.get("voice_id", "") or ""
+    call.voice_usable = bool(profile.get("usable"))
+    if lang is not None:
+        call.language = lang
+        fields.append("language")
+    call.save(update_fields=fields)
+
+
 class VoiceCallListCreate(generics.ListCreateAPIView):
     serializer_class = VoiceCallSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -81,6 +129,42 @@ class VoiceCallTriggerView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # S9 step 2 + S22/S23: identify the customer, resolve their language,
+        # and refuse to dial if we have no native voice for it. Speaking Igbo
+        # with an English voice is worse than not calling at all.
+        language_code, language_source, profile = _resolve_call_language(call, org)
+
+        if not profile.get("usable"):
+            call.status = "cancelled"
+            call.voice_usable = False
+            call.escalated = True
+            call.escalation_reason = "no_native_voice"
+            call.language_source = language_source
+            call.save(update_fields=[
+                "status", "voice_usable", "escalated", "escalation_reason",
+                "language_source", "updated_at",
+            ])
+            logger.warning(
+                "[VoiceCallTrigger] Refusing to call %s — no validated voice for %s",
+                pk, language_code,
+            )
+            return Response({
+                "success": False,
+                "data": {
+                    "error_code": "NO_NATIVE_VOICE",
+                    "language": language_code,
+                    "reason": profile.get("reason"),
+                    "message": (
+                        f"No validated {language_code} voice is available. "
+                        "Escalated to a human instead of calling in the wrong language."
+                    ),
+                },
+            }, status=status.HTTP_409_CONFLICT)
+
+        # Persist the language decision before dialling so the record exists
+        # even if the provider call fails.
+        _apply_language_to_call(call, language_code, language_source, profile)
+
         # Create attempt record
         attempt_number = call.attempts.count() + 1
         attempt = CallAttempt.objects.create(
@@ -103,6 +187,10 @@ class VoiceCallTriggerView(APIView):
                 channel="voice",
                 template_id="voice_reminder",
                 status="sending",
+                # Pin the language we validated, so the provider cannot
+                # re-resolve to something else mid-call.
+                language=language_code,
+                language_source=language_source,
             )
 
             provider = AfricasTalkingProvider()

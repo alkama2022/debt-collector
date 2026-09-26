@@ -101,8 +101,8 @@ export default function InvoiceDetail() {
         </div>
 
         {/* Line items */}
-        <div className="mt-6 overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="mt-6 scroll-x">
+          <table className="w-full text-sm min-w-[560px]">
             <thead className="text-xs text-slate-500 dark:text-slate-400 border-b">
               <tr>
                 <th className="text-left py-2">Description</th>

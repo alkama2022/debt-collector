@@ -128,7 +128,7 @@ export default function Settings(){
           <div>
             <div className="text-sm font-medium dark:text-white">Theme</div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Choose how CollectNaija looks. System follows your device.</p>
-            <div className="mt-3 grid grid-cols-3 gap-3">
+            <div className="mt-3 grid grid-cols-3 gap-2 sm:gap-3">
               {([
                 { id:"light", label:"Light", desc:"Bright & clean", icon: Sun, preview:"bg-white border-slate-200" },
                 { id:"dark", label:"Dark", desc:"Easy on eyes", icon: Moon, preview:"bg-slate-900 border-slate-700" },
@@ -243,8 +243,8 @@ export default function Settings(){
     {tab==="roles" && <Card className="p-6">
       <h3 className="font-semibold">Roles & Permissions</h3>
       <p className="text-sm text-slate-600 dark:text-slate-400">Frontend is UX-only; backend enforces. Try switching role in code to see UI hide/show.</p>
-      <div className="mt-3 overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="mt-3 scroll-x">
+        <table className="w-full text-sm min-w-[720px]">
           <thead className="text-xs text-slate-500 dark:text-slate-400"><tr><th className="text-left">Resource</th><th>View</th><th>Create</th><th>Edit</th><th>Delete</th></tr></thead>
           <tbody>
             {[
@@ -406,7 +406,7 @@ function ReminderRulesTab() {
                 value={form.template}
                 onChange={e => set("template", e.target.value)}
                 placeholder="Hello {{customer_name}}, invoice {{invoice_number}} for {{amount_due}} is due on {{due_date}}. Pay: {{payment_link}}"
-                className="mt-1 w-full h-24 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="input-zoom-safe mt-1 w-full h-24 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
               <p className="text-xs text-slate-400 mt-1">Variables: {"{{customer_name}} {{invoice_number}} {{amount_due}} {{due_date}} {{payment_link}} {{business_name}}"}</p>
             </div>
