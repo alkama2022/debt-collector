@@ -178,7 +178,7 @@ export default function Login() {
         </div>
       </div>
 
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 text-white p-10 flex-col justify-center border-l">
+      <div className="hidden lg:flex flex-1 bg-slate-900 text-white p-10 flex-col justify-center border-l">
         <div className="max-w-md">
           <div className="text-xs font-medium tracking-widest uppercase text-white/50">
             Why teams stay

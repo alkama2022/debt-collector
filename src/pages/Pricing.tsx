@@ -166,11 +166,11 @@ export default function Pricing() {
     <div className="max-w-[1280px] mx-auto space-y-8 pb-10">
       {/* HERO */}
       <div className="text-center pt-6 md:pt-8 px-2">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border border-emerald-200/70 dark:border-emerald-800 text-xs font-medium text-emerald-800 dark:text-emerald-300 shadow-sm">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300 shadow-sm">
           <Sparkles className="w-3.5 h-3.5" /> 14-day trial on Starter & Business • Cancel anytime • No hidden fees
         </div>
         <h1 className="text-[30px] md:text-[42px] font-bold tracking-tight mt-4 leading-[1.05]">
-          Simple pricing. <span className="bg-gradient-to-r from-brand-600 to-indigo-600 bg-clip-text text-transparent">No surprises.</span>
+          Simple pricing. <span className="text-brand-600 dark:text-sky-400">No surprises.</span>
         </h1>
         <p className="text-[15px] leading-6 text-slate-600 dark:text-slate-400 mt-3 max-w-2xl mx-auto">
           Start free, upgrade when you earn more. Every balance is <span className="font-medium text-slate-900 dark:text-white">server-calculated</span> and every AI / messaging cost is shown before you pay.
@@ -443,7 +443,7 @@ export default function Pricing() {
             <div><div className="text-sm font-medium">B. Adeyemi</div><div className="text-xs text-slate-500">Proprietor • Lagos • Business plan</div></div>
           </div>
         </div>
-        <div className="rounded-[20px] bg-gradient-to-br from-violet-600 to-indigo-600 text-white p-6 flex flex-col">
+        <div className="rounded-[20px] bg-slate-900 dark:bg-slate-800 text-white p-6 flex flex-col">
           <div className="w-10 h-10 rounded-xl bg-white/15 grid place-items-center"><Headphones className="w-5 h-5" /></div>
           <h4 className="font-semibold mt-4">Need enterprise?</h4>
           <p className="text-sm text-white/80 mt-1 leading-relaxed">Custom limits, SLA, dedicated success manager & data residency options.</p>

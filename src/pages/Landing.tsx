@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom"
-import { Check, ArrowRight, Users, FileText, CreditCard, Bell, BarChart3, Shield, Building2, Sparkles, Clock, Lock } from "lucide-react"
+import { Check, ArrowRight, Users, FileText, CreditCard, Bell, BarChart3, Shield, Building2, Clock, Lock } from "lucide-react"
 import { ThemeToggle } from "../components/ui/theme-toggle"
 
 export default function Landing(){
@@ -7,7 +7,7 @@ export default function Landing(){
     <header className="sticky top-0 z-20 bg-white/90 dark:bg-[#020617]/90 backdrop-blur-xl border-b border-slate-200/70 dark:border-slate-800 pt-safe">
       <div className="max-w-6xl mx-auto px-4 h-14 sm:h-16 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div className="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br from-brand-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">CN</div>
+          <div className="w-9 h-9 shrink-0 rounded-xl bg-brand-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">CN</div>
           <span className="font-semibold tracking-tight hidden sm:inline truncate">CollectNaija</span>
           <span className="hidden md:inline text-xs text-slate-500 ml-2 whitespace-nowrap">The receivables workspace for ambitious businesses</span>
         </div>
@@ -22,8 +22,8 @@ export default function Landing(){
 
     <section className="max-w-6xl mx-auto px-4 pt-12 md:pt-16 pb-10 grid md:grid-cols-2 gap-10 items-center">
       <div>
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-950/40 dark:to-indigo-950/40 border border-violet-200/60 dark:border-violet-800 text-xs font-medium text-violet-700 dark:text-violet-300"><Sparkles className="w-3.5 h-3.5"/> Nigeria-first. Built to scale globally.</div>
-        <h1 className="mt-5 text-4xl md:text-[46px] font-bold tracking-tight leading-[1.02]">Stop chasing payments.<br/><span className="bg-gradient-to-r from-brand-600 to-indigo-600 bg-clip-text text-transparent">Start collecting</span> with confidence.</h1>
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300">Made for Nigerian businesses, by Nigerians</div>
+        <h1 className="mt-5 text-4xl md:text-[46px] font-bold tracking-tight leading-[1.05]">Stop chasing payments.<br/><span className="text-brand-600 dark:text-sky-400">Start collecting</span> with confidence.</h1>
         <p className="mt-4 text-[17px] leading-7 text-slate-600 dark:text-slate-400 max-w-xl">Customer management, invoicing, payment tracking and automated reminders — in one calm workspace. Your team knows who owes what, when they promised to pay, and what to do next.</p>
         <div className="mt-7 flex flex-wrap gap-3">
           <Link to="/signup" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-brand-600 text-white font-medium hover:bg-brand-700 shadow-sm hover:shadow-md transition">Start free <ArrowRight className="w-4 h-4"/></Link>
@@ -40,7 +40,7 @@ export default function Landing(){
         </div>
       </div>
       <div className="relative">
-        <div className="absolute -inset-3 bg-gradient-to-br from-violet-100 to-indigo-100 dark:from-violet-950/20 dark:to-indigo-950/20 rounded-[28px] blur-2xl"/>
+        <div className="absolute -inset-3 bg-slate-100 dark:bg-slate-900/40 rounded-[28px] blur-2xl"/>
         <div className="relative bg-white dark:bg-slate-800 rounded-[24px] border border-slate-200 dark:border-slate-700 shadow-xl dark:shadow-2xl p-5 md:p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm font-semibold">Your cash flow at a glance</div>
@@ -51,7 +51,7 @@ export default function Landing(){
             <div className="rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4"><div className="text-xs text-slate-500">Overdue</div><div className="text-xl font-bold mt-1 text-amber-600">₦640k</div><div className="text-xs text-slate-500 mt-1">Due today ₦180k</div></div>
             <div className="rounded-2xl bg-slate-900 text-white p-4 col-span-2 flex items-center justify-between">
               <div><div className="text-xs text-white/70">Collected this month</div><div className="text-lg font-semibold mt-1">₦1.2M • 18 payments</div></div>
-              <div className="w-10 h-10 rounded-xl bg-white/10 grid place-items-center">🎉</div>
+              <div className="w-10 h-10 rounded-xl bg-white/10 grid place-items-center text-white text-lg">₦</div>
             </div>
           </div>
           <div className="mt-4 space-y-2">

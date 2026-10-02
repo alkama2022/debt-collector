@@ -76,7 +76,7 @@ export default function PayInvoice() {
       <ConfettiBurst trigger={1} />
       <Card className="max-w-md w-full p-8 text-center">
         <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-2xl animate-bounce">✓</div>
-        <h1 className="text-xl font-bold mt-4">Payment received 🎉</h1>
+        <h1 className="text-xl font-bold mt-4">Payment received</h1>
         <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">Thank you — your payment for <b>{inv?.invoice_number}</b> of <b>{formatCurrency(Number(inv?.balance || 0), inv?.currency || "NGN")}</b> is being verified. {verifyNote || "Receipt will be sent via WhatsApp/SMS."}</p>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">Powered by CollectNaija + Paystack. Balance auto-updated via webhook/signal — <code>Invoice.balance</code> recalculated, reminders cancelled, receipt generated.</p>
         <Link to="/" className="mt-6 inline-block text-sm text-brand-600 font-medium">Back to CollectNaija →</Link>

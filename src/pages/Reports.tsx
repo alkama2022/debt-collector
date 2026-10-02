@@ -311,7 +311,7 @@ export default function Reports() {
                     </tr>
                   ))}
                   {data.top_debtors.length === 0 && (
-                    <tr><td colSpan={3} className="py-8 text-center text-slate-400 text-sm">No outstanding debtors 🎉</td></tr>
+                    <tr><td colSpan={3} className="py-8 text-center text-slate-400 text-sm">No outstanding debtors</td></tr>
                   )}
                 </tbody>
               </table>

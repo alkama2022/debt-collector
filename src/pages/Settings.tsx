@@ -118,7 +118,7 @@ export default function Settings(){
       <div className="space-y-4">
         <Card className="p-6 space-y-5">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white"><Palette className="w-5 h-5" /></div>
+            <div className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-white"><Palette className="w-5 h-5" /></div>
             <div>
               <h3 className="font-semibold dark:text-white">Appearance</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">Beautiful light & dark mode · Respects system preference · Instant toggle</p>
@@ -132,7 +132,7 @@ export default function Settings(){
               {([
                 { id:"light", label:"Light", desc:"Bright & clean", icon: Sun, preview:"bg-white border-slate-200" },
                 { id:"dark", label:"Dark", desc:"Easy on eyes", icon: Moon, preview:"bg-slate-900 border-slate-700" },
-                { id:"system", label:"System", desc:"Auto", icon: Monitor, preview:"bg-gradient-to-br from-white to-slate-900 border-slate-300" },
+                { id:"system", label:"System", desc:"Auto", icon: Monitor, preview:"bg-white dark:bg-slate-900 border-slate-300" },
               ] as const).map(o=>{
                 const active = theme===o.id
                 return (
@@ -156,8 +156,8 @@ export default function Settings(){
             <ThemeToggle variant="full" />
           </div>
 
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-brand-600 to-indigo-600 text-white">
-            <div className="text-sm font-semibold">✨ Dark mode highlights</div>
+          <div className="p-4 rounded-2xl bg-slate-900 text-white">
+            <div className="text-sm font-semibold">Dark mode highlights</div>
             <ul className="mt-2 text-xs text-white/80 space-y-1">
               <li>• True dark backgrounds (#020617) — OLED-friendly</li>
               <li>• Elevated cards with soft shadows & borders</li>

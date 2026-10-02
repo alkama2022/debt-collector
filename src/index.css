@@ -36,7 +36,7 @@ html {
 .scrollbar-thin { scrollbar-width: thin; }
 
 html { transition: background-color 0.25s ease, color 0.25s ease; }
-body { @apply bg-[#f8fafc] text-slate-900 dark:bg-[#020617] dark:text-slate-100 antialiased; transition: background-color 0.3s ease, color 0.3s ease; }
+body { @apply bg-[#faf9f6] text-slate-900 dark:bg-[#0f172a] dark:text-slate-100 antialiased; transition: background-color 0.3s ease, color 0.3s ease; }
 ::selection { @apply bg-brand-600 text-white; }
 
 /* Remove the grey flash on tap in mobile Safari/Chrome */
