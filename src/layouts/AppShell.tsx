@@ -6,7 +6,6 @@ import { useState, useEffect } from "react"
 import { ThemeToggle } from "../components/ui/theme-toggle"
 import { FAB } from "../components/ui/fab"
 import { PaymentPoller } from "../hooks/usePaymentPolling"
-import { DemoSeeder } from "../hooks/useDemoSeed"
 import {
   useKeyboardShortcuts,
   ShortcutOverlay,
@@ -100,7 +99,6 @@ export default function AppShell(){
   return <div className="min-h-screen-dvh bg-[#f8fafc] dark:bg-[#020617] text-slate-900 dark:text-slate-100 transition-colors">
     {/* Background services — no UI rendered */}
     <PaymentPoller />
-    <DemoSeeder />
 
     {/* Keyboard shortcut overlays */}
     <ShortcutOverlay show={showHelp} onClose={() => setShowHelp(false)} />
