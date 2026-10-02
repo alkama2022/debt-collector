@@ -49,3 +49,13 @@ celerybeat.pid
 
 # Render
 .render/
+
+# Vite/TS build outputs
+*.tsbuildinfo
+vite.config.d.ts
+vite.config.js
+seeder*.log
+piplog*.txt
+
+# Node
+node_modules/
