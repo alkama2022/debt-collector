@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     # auth/login is handled by LoginView (returns user+org+tokens)
@@ -22,4 +23,5 @@ urlpatterns = [
     path("api/v1/", include("apps.languages.urls")),
     path("api/v1/", include("apps.reports.urls")),
     path("health", include("apps.tenancy.health_urls")),
+    path("", include("apps.collectNaija.urls")),
 ]

@@ -12,7 +12,7 @@ const apiBaseUrl = rawApiBase && !rawApiBase.includes("example")
 export const config = {
   apiBaseUrl,
   appName: "CollectNaija",
-  supportEmail: "support@collectnaija.com",
+  supportEmail: "alkalineumarliman@gmail.com",
   currencyDefault: "NGN",
   countryDefault: "NG",
   timezoneDefault: "Africa/Lagos",

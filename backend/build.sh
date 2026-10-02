@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
-# Render build step. Referenced by render.yaml buildCommand.
-set -euo pipefail
+set -o errexit
 
-pip install --upgrade pip
 pip install -r requirements.txt
 
-# Static assets. The API is JSON-only, so failures here are not fatal.
-python manage.py collectstatic --noinput || echo "collectstatic skipped"
+python manage.py collectstatic --noinput
 
-echo "Build complete."
+python manage.py migrate --noinput

@@ -16,45 +16,45 @@ export default function Signup() {
   const [pwd, setPwd] = useState("");
   const [err, setErr] = useState("");
   const [fieldErr, setFieldErr] = useState<Record<string, string>>({});
-  const [serverStatus, setServerStatus] = useState<
-    "checking" | "online" | "offline" | "waking"
-  >("checking");
+  // const [serverStatus, setServerStatus] = useState<
+  //   "checking" | "online" | "offline" | "waking"
+  // >("checking");
 
   // Ping the backend on mount
-  useEffect(() => {
-    let cancelled = false;
-    const ping = async () => {
-      try {
-        const base = config.apiBaseUrl.replace(/\/api\/v1\/?$/, "");
-        const res = await fetch(`${base}/health`, {
-          signal: AbortSignal.timeout(8000),
-        });
-        if (!cancelled) setServerStatus(res.ok ? "online" : "offline");
-      } catch {
-        if (!cancelled) setServerStatus("offline");
-      }
-    };
-    ping();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // useEffect(() => {
+  //   let cancelled = false;
+  //   const ping = async () => {
+  //     try {
+  //       const base = config.apiBaseUrl.replace(/\/api\/v1\/?$/, "");
+  //       const res = await fetch(`${base}/health`, {
+  //         signal: AbortSignal.timeout(8000),
+  //       });
+  //       if (!cancelled) setServerStatus(res.ok ? "online" : "offline");
+  //     } catch {
+  //       if (!cancelled) setServerStatus("offline");
+  //     }
+  //   };
+  //   ping();
+  //   return () => {
+  //     cancelled = true;
+  //   };
+  // }, []);
 
-  const wakeServer = async () => {
-    setServerStatus("waking");
-    // push("Waking server — ~30 seconds on Render free tier…", "info");
-    try {
-      const base = config.apiBaseUrl.replace(/\/api\/v1\/?$/, "");
-      const res = await fetch(`${base}/health`, {
-        signal: AbortSignal.timeout(45000),
-      });
-      setServerStatus(res.ok ? "online" : "offline");
-      if (res.ok) push("Server is awake — you can now register", "success");
-    } catch {
-      setServerStatus("offline");
-      push("Server timed out. Try again shortly.", "error");
-    }
-  };
+  // const wakeServer = async () => {
+  //   setServerStatus("waking");
+  //   // push("Waking server — ~30 seconds on Render free tier…", "info");
+  //   try {
+  //     const base = config.apiBaseUrl.replace(/\/api\/v1\/?$/, "");
+  //     const res = await fetch(`${base}/health`, {
+  //       signal: AbortSignal.timeout(45000),
+  //     });
+  //     setServerStatus(res.ok ? "online" : "offline");
+  //     if (res.ok) push("Server is awake — you can now register", "success");
+  //   } catch {
+  //     setServerStatus("offline");
+  //     push("Server timed out. Try again shortly.", "error");
+  //   }
+  // };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,7 +87,7 @@ export default function Signup() {
                 e?.data?.message ||
                 "Registration failed. Please try again.";
       setErr(msg);
-      if (status === 0) setServerStatus("offline");
+      // if (status === 0) setServerStatus("offline");
     }
   };
 
@@ -195,7 +195,7 @@ export default function Signup() {
           )}
           <Button
             type="submit"
-            disabled={loading || serverStatus === "waking"}
+            // disabled={loading || serverStatus === "waking"}
             className="w-full"
           >
             {loading ? "Creating account…" : "Create account"}

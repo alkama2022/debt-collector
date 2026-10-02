@@ -14,47 +14,49 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
   const [err, setErr] = useState("");
+  {/*
   const [serverStatus, setServerStatus] = useState<
     "checking" | "online" | "offline" | "waking"
   >("checking");
 
-  // Ping the backend health endpoint on mount
-  useEffect(() => {
-    let cancelled = false;
-    const ping = async () => {
-      try {
-        const base = config.apiBaseUrl.replace(/\/api\/v1\/?$/, "");
-        const res = await fetch(`${base}/health`, {
-          signal: AbortSignal.timeout(8000),
-        });
-        if (!cancelled) setServerStatus(res.ok ? "online" : "offline");
-      } catch {
-        if (!cancelled) setServerStatus("offline");
-      }
-    };
-    ping();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // // Ping the backend health endpoint on mount
+  // useEffect(() => {
+  //   let cancelled = false;
+  //   const ping = async () => {
+  //     try {
+  //       const base = config.apiBaseUrl.replace(/\/api\/v1\/?$/, "");
+  //       const res = await fetch(`${base}/health`, {
+  //         signal: AbortSignal.timeout(8000),
+  //       });
+  //       if (!cancelled) setServerStatus(res.ok ? "online" : "offline");
+  //     } catch {
+  //       if (!cancelled) setServerStatus("offline");
+  //     }
+  //   };
+  //   ping();
+  //   return () => {
+  //     cancelled = true;
+  //   };
+  // }, []);
 
-  const wakeServer = async () => {
-    setServerStatus("waking");
-    push("Waking the server — this takes ~30 seconds on first load…", "info");
-    try {
-      const base = config.apiBaseUrl.replace(/\/api\/v1\/?$/, "");
-      const res = await fetch(`${base}/health`, {
-        signal: AbortSignal.timeout(45000),
-      });
-      setServerStatus(res.ok ? "online" : "offline");
-      if (res.ok) push("Server is awake — you can now log in", "success");
-      else
-        push("Server did not respond. Check your Render dashboard.", "error");
-    } catch {
-      setServerStatus("offline");
-      push("Server did not respond within 45s. Try again shortly.", "error");
-    }
-  };
+  // const wakeServer = async () => {
+  //   setServerStatus("waking");
+  //   push("Waking the server — this takes ~30 seconds on first load…", "info");
+  //   try {
+  //     const base = config.apiBaseUrl.replace(/\/api\/v1\/?$/, "");
+  //     const res = await fetch(`${base}/health`, {
+  //       signal: AbortSignal.timeout(45000),
+  //     });
+  //     setServerStatus(res.ok ? "online" : "offline");
+  //     if (res.ok) push("Server is awake — you can now log in", "success");
+  //     else
+  //       push("Server did not respond. Check your Render dashboard.", "error");
+  //   } catch {
+  //     setServerStatus("offline");
+  //     push("Server did not respond within 45s. Try again shortly.", "error");
+  //   }
+  // };
+  */}
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,27 +67,27 @@ export default function Login() {
     }
     try {
       await login(email, pwd);
+      nav("/dashboard");
       push("Welcome back", "success");
-      nav("/dashboard");
+      
     } catch (e: any) {
-      nav("/dashboard");
       const status = e?.status;
       const msg =
         status === 0
-          ? "Cannot reach the server. It may be starting up — click 'Wake server' below and try again in 30 seconds."
+          ? "Cannot reach the server."
           : status === 400 || status === 401
             ? "Incorrect email or password."
             : status === 404
-              ? `Login endpoint not found. API URL: ${config.apiBaseUrl}`
+              ? "Something Went Wrong."
               : e?.data?.detail ||
                 e?.data?.message ||
                 e?.data?.non_field_errors?.[0] ||
                 "Login failed. Please try again.";
       setErr(msg);
-      push("Welcome back", "success");
-
-      if (status === 0) setServerStatus("offline");
-      push("Welcome back", "success");
+      // if (status === 0){
+      //    setServerStatus("offline")
+      //   };
+      
     }
   };
 
@@ -110,44 +112,7 @@ export default function Login() {
         <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
           Sign in to your workspace.
         </p>
-        {/* Server status banner */}
-        {serverStatus === "checking" && (
-          <div className="mt-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 text-xs text-slate-500 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse" />
-            Checking server status…
-          </div>
-        )}
-        {serverStatus === "online" && (
-          <div className="mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-700 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            Server is online — ready to log in
-          </div>
-        )}
-        {(serverStatus === "offline" || serverStatus === "waking") && (
-          <div className="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <span
-                  className={`w-2 h-2 rounded-full ${serverStatus === "waking" ? "bg-amber-400 animate-pulse" : "bg-amber-500"}`}
-                />
-                {serverStatus === "waking"
-                  ? "Waking server (~30s)…"
-                  : "Server offline or sleeping (Render free tier spins down)"}
-              </span>
-              {serverStatus !== "waking" && (
-                <button
-                  onClick={wakeServer}
-                  className="ml-3 px-2.5 py-1 rounded-full bg-amber-700 text-white text-xs font-medium"
-                >
-                  Wake server
-                </button>
-              )}
-            </div>
-            <p className="mt-1.5 text-amber-700 font-mono break-all">
-              {config.apiBaseUrl}
-            </p>
-          </div>
-        )}
+   
         <form
           onSubmit={submit}
           className="mt-4 space-y-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm"
@@ -177,7 +142,7 @@ export default function Login() {
           )}
           <Button
             type="submit"
-            disabled={loading || serverStatus === "waking"}
+            // disabled={loading || serverStatus === "waking"}
             className="w-full"
           >
             {loading ? "Signing in…" : "Sign in"}
