@@ -10,6 +10,7 @@ services:
     startCommand: >-
       sh -c "python manage.py migrate --noinput
       && python manage.py seed_billing
+      && python manage.py ensure_admin
       && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 3 --timeout 60"
     envVars:
       - key: PYTHON_VERSION
@@ -38,4 +39,8 @@ services:
       - key: PAYSTACK_SECRET_KEY
         sync: false
       - key: PAYSTACK_WEBHOOK_SECRET
+        sync: false
+      - key: DJANGO_SUPERUSER_EMAIL
+        sync: false
+      - key: DJANGO_SUPERUSER_PASSWORD
         sync: false
